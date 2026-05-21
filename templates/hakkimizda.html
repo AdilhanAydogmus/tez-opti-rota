@@ -1,0 +1,284 @@
+{% from "macros.html" import navbar %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hakkımızda — Tez Platformu</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+/* ── Ekip kartları ───────────────────────────────── */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+.team-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 1.5rem 1.25rem;
+  text-align: center;
+  transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.team-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.team-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--purple2);
+  box-shadow: 0 10px 36px rgba(124,58,237,0.18);
+}
+.team-avatar {
+  width: 78px; height: 78px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(168,85,247,0.35);
+  margin: 0 auto .9rem;
+  display: block;
+}
+.team-name { font-weight: 700; font-size: 0.92rem; margin-bottom: 3px; }
+.team-role { font-size: 0.76rem; color: var(--text-muted); margin-bottom: .75rem; }
+
+/* ── Sosyal ikonlar ──────────────────────────────── */
+.social-links { display: flex; justify-content: center; gap: 8px; }
+.social-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all 0.18s;
+}
+.social-btn.linkedin {
+  background: rgba(10,102,194,0.12);
+  border-color: rgba(10,102,194,0.35);
+  color: #5ca8f0;
+}
+.social-btn.linkedin:hover { background: rgba(10,102,194,0.25); border-color: #5ca8f0; }
+.social-btn.mail {
+  background: rgba(168,85,247,0.1);
+  border-color: rgba(168,85,247,0.3);
+  color: var(--purple3);
+}
+.social-btn.mail:hover { background: rgba(168,85,247,0.22); border-color: var(--purple2); }
+
+/* ── Danışman kartı ──────────────────────────────── */
+.advisor-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.5rem;
+  flex-wrap: nowrap;
+}
+.advisor-card .team-avatar {
+  width: 96px; height: 96px;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* ── Teknoloji grid ──────────────────────────────── */
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: .9rem;
+  margin-top: .9rem;
+}
+.tech-item {
+  background: rgba(124,58,237,0.07);
+  border: 1px solid rgba(168,85,247,0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: center;
+  transition: border-color 0.18s, background 0.18s;
+}
+.tech-item:hover {
+  background: rgba(124,58,237,0.14);
+  border-color: rgba(168,85,247,0.38);
+}
+.tech-icon  { font-size: 1.8rem; margin-bottom: 5px; }
+.tech-name  { font-size: 0.82rem; font-weight: 700; color: var(--purple3); }
+.tech-desc  { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+</style>
+</head>
+<body>
+<div class="stars-bg"></div>
+{{ navbar('hakkimizda') }}
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>👥 Hakkımızda</h1>
+    <p>İlaç lojistiği optimizasyonu üzerine tez çalışması</p>
+  </div>
+
+  <!-- ── Proje Özeti ───────────────────────────── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title"><span>🎓</span> Proje Hakkında</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
+      <div>
+        <p style="color:rgba(255,255,255,0.72);line-height:1.85;font-size:0.9rem;">
+          Bu çalışma, ilaç dağıtım lojistiğini optimize etmek amacıyla geliştirilen entegre bir karar destek
+          sistemidir. LSTM tabanlı talep tahmini, K-Means müşteri segmentasyonu ve ALNS matheuristic
+          araç rotalama algoritmaları bir araya getirilerek gerçek dünya problemlerine uygulanmıştır.
+        </p>
+        <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:8px;">
+          <span class="badge badge-purple">Cencora × İlaç Lojistiği</span>
+          <span class="badge badge-gold">Tez Çalışması</span>
+          <a href="https://github.com/AdilhanAydogmus/rotalama" target="_blank" rel="noopener"
+             style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:0.76rem;font-weight:600;text-decoration:none;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);transition:all .18s;"
+             onmouseover="this.style.borderColor='rgba(168,85,247,.5)';this.style.color='white';"
+             onmouseout="this.style.borderColor='rgba(255,255,255,.15)';this.style.color='rgba(255,255,255,.7)';">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+      <div>
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-val">3</div><div class="metric-label">Algoritma</div></div>
+          <div class="metric-card"><div class="metric-val">3</div><div class="metric-label">Segment</div></div>
+          <div class="metric-card"><div class="metric-val">ALNS</div><div class="metric-label">Optimizasyon</div></div>
+          <div class="metric-card"><div class="metric-val">LSTM</div><div class="metric-label">Tahmin Modeli</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Danışman ──────────────────────────────── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title"><span>🎓</span> Danışman</div>
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:0.75rem;">
+      <img src="/static/images/hoca.webp" alt="Danışman" class="team-avatar" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid rgba(168,85,247,0.35);display:block;margin:0 auto;">
+      <div>
+        <div style="font-weight:700;font-size:1.05rem;">Doç. Dr. Gökhan Özçelik</div>
+        <div style="color:var(--text-muted);font-size:0.85rem;margin-top:3px;">Endüstri Mühendisliği Bölümü</div>
+        <div style="color:rgba(255,255,255,0.45);font-size:0.8rem;margin-top:2px;">Tez Danışmanı</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Araştırma Ekibi ───────────────────────── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title"><span>👥</span> Araştırma Ekibi</div>
+    <div class="team-grid">
+
+      <!-- Adilhan -->
+      <div class="team-card">
+        <img src="/static/images/adilhan.jpeg" alt="Adilhan" class="team-avatar">
+        <div class="team-name">Adilhan Aydoğmuş</div>
+        <div class="team-role">Endüstri Mühendisi</div>
+        <div class="social-links">
+          <a class="social-btn linkedin"
+             href="https://www.linkedin.com/in/adilhan-aydo%C4%9Fmu%C5%9F/"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="social-btn mail"
+             href="mailto:adilhanaydogmus23@gmail.com">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Mail
+          </a>
+        </div>
+      </div>
+
+      <!-- Burcu -->
+      <div class="team-card">
+        <img src="/static/images/burcu.jpeg" alt="Burcu" class="team-avatar">
+        <div class="team-name">Burcu Tuncel</div>
+        <div class="team-role">Araştırmacı</div>
+        <div class="social-links">
+          <a class="social-btn linkedin"
+             href="https://www.linkedin.com/in/burcu-tuncel/"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="social-btn mail"
+             href="mailto:tuncelburcu26@gmail.com">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Mail
+          </a>
+        </div>
+      </div>
+
+      <!-- İlayda -->
+      <div class="team-card">
+        <img src="/static/images/ilayda.jpeg" alt="İlayda" class="team-avatar">
+        <div class="team-name">İ. Sude Ateşli</div>
+        <div class="team-role">Araştırmacı</div>
+        <div class="social-links">
+          <a class="social-btn linkedin"
+             href="https://www.linkedin.com/in/ilayda-sude-atesli/"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="social-btn mail"
+             href="mailto:atessude91@gmail.com">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Mail
+          </a>
+        </div>
+      </div>
+
+      <!-- Öykü -->
+      <div class="team-card">
+        <img src="/static/images/oyku.jpeg" alt="Öykü" class="team-avatar">
+        <div class="team-name">Öykü Deniz Özel</div>
+        <div class="team-role">Araştırmacı</div>
+        <div class="social-links">
+          <a class="social-btn linkedin"
+             href="https://www.linkedin.com/in/%C3%B6yk%C3%BCdeniz%C3%B6zel/"
+             target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="social-btn mail"
+             href="mailto:oykudenizozel@gmail.com">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Mail
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Teknolojiler ───────────────────────────── -->
+  <div class="card">
+    <div class="card-title"><span>⚙️</span> Kullanılan Teknolojiler</div>
+    <div class="tech-grid">
+      <div class="tech-item"><div class="tech-icon">🐍</div><div class="tech-name">Python</div><div class="tech-desc">Backend & ML</div></div>
+      <div class="tech-item"><div class="tech-icon">⚡</div><div class="tech-name">FastAPI</div><div class="tech-desc">REST API</div></div>
+      <div class="tech-item"><div class="tech-icon">🧠</div><div class="tech-name">TensorFlow/Keras</div><div class="tech-desc">LSTM Modeli</div></div>
+      <div class="tech-item"><div class="tech-icon">📊</div><div class="tech-name">scikit-learn</div><div class="tech-desc">K-Means</div></div>
+      <div class="tech-item"><div class="tech-icon">🗺️</div><div class="tech-name">Leaflet.js</div><div class="tech-desc">Harita</div></div>
+      <div class="tech-item"><div class="tech-icon">🗄️</div><div class="tech-name">SQLite</div><div class="tech-desc">Veritabanı</div></div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+      <span class="badge badge-purple">🌤 SDG 7 — Temiz Enerji</span>
+      <span class="badge badge-purple">⚙️ SDG 9 — Sanayi & Altyapı</span>
+      <span class="badge badge-purple">🏙 SDG 11 — Sürdürülebilir Şehirler</span>
+      <span class="badge badge-purple">♻️ SDG 12 — Sürdürülebilir Üretim</span>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

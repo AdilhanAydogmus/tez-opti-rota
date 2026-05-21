@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akıllı Öncelik, Akıllı Rota</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --sky1:#1a0533;
+  --sky2:#2d1054;
+  --road:#2a2a2a;
+  --road-edge:#3d3d3d;
+  --stripe:#f5e642;
+  --purple:#7c3aed;
+  --purple2:#a855f7;
+  --purple3:#c084fc;
+  --purple4:#e9d5ff;
+  --white:#ffffff;
+  --card-bg:rgba(15,5,30,0.96);
+  --card-border:rgba(168,85,247,0.5);
+}
+
+html{scroll-behavior:smooth;}
+body{
+  background:var(--sky1);
+  font-family:'Segoe UI',system-ui,sans-serif;
+  overflow-x:hidden;
+  color:var(--white);
+}
+
+/* ── HEADER ── */
+#header{
+  position:relative;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  background:linear-gradient(180deg,#0a0218 0%,#1a0533 50%,#2d1054 100%);
+}
+
+.stars{
+  position:absolute;inset:0;
+  background-image:
+    radial-gradient(1px 1px at 20% 15%,#fff,transparent),
+    radial-gradient(1px 1px at 80% 10%,#fff,transparent),
+    radial-gradient(1px 1px at 50% 30%,rgba(255,255,255,0.6),transparent),
+    radial-gradient(1px 1px at 10% 50%,rgba(255,255,255,0.4),transparent),
+    radial-gradient(1px 1px at 90% 60%,rgba(255,255,255,0.5),transparent),
+    radial-gradient(2px 2px at 35% 20%,rgba(192,132,252,0.8),transparent),
+    radial-gradient(1px 1px at 70% 40%,rgba(255,255,255,0.3),transparent),
+    radial-gradient(1px 1px at 15% 80%,rgba(255,255,255,0.4),transparent),
+    radial-gradient(2px 2px at 60% 70%,rgba(192,132,252,0.5),transparent);
+  pointer-events:none;
+}
+
+.header-content{
+  position:relative;z-index:2;
+  text-align:center;padding:2rem;
+}
+.cencora-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(124,58,237,0.2);
+  border:1px solid rgba(192,132,252,0.4);
+  border-radius:100px;padding:6px 18px;
+  font-size:11px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--purple3);margin-bottom:1.5rem;
+}
+.live-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--purple3);
+  animation:blink 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.2;}}
+
+#header h1{
+  font-size:clamp(1.8rem,5vw,3.8rem);
+  font-weight:800;line-height:1.1;
+  letter-spacing:-0.03em;
+  background:linear-gradient(135deg,#fff 30%,var(--purple3) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom:1rem;
+  max-width:800px;
+}
+.header-sub{
+  font-size:0.95rem;color:rgba(255,255,255,0.55);
+  margin-bottom:2.5rem;letter-spacing:0.03em;
+}
+.team-chips{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;
+  margin-bottom:2.5rem;
+}
+.chip{
+  background:rgba(124,58,237,0.2);
+  border:1px solid rgba(168,85,247,0.3);
+  border-radius:100px;padding:4px 14px;
+  font-size:12px;color:var(--purple4);
+}
+
+.scroll-cta{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;
+  text-transform:uppercase;
+  animation:float 2.5s ease-in-out infinite;
+}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(6px);}}
+.arrow-down{
+  width:20px;height:20px;
+  border-right:2px solid rgba(192,132,252,0.6);
+  border-bottom:2px solid rgba(192,132,252,0.6);
+  transform:rotate(45deg);
+}
+
+/* ── ROAD SECTION ── */
+#road-section{
+  position:relative;
+  background:linear-gradient(180deg,#2d1054 0%,#1a0533 100%);
+  padding-bottom:6rem;
+}
+
+/* The winding road SVG background */
+.road-bg{
+  position:absolute;
+  left:50%;transform:translateX(-50%);
+  width:100%;max-width:900px;
+  top:0;bottom:0;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ── STOP CARDS ── */
+.road-stops{
+  position:relative;z-index:2;
+  max-width:960px;margin:0 auto;
+  padding:3rem 1.5rem;
+  display:flex;flex-direction:column;gap:0;
+}
+
+.stop{
+  display:grid;
+  grid-template-columns:1fr 80px 1fr;
+  align-items:start;
+  min-height:240px;
+  position:relative;
+  margin-bottom:0;
+}
+
+/* alternate: odd = card left, even = card right */
+.stop:nth-child(odd) .stop-card{ grid-column:1; }
+.stop:nth-child(odd) .stop-spine{ grid-column:2; }
+.stop:nth-child(odd) .stop-empty{ grid-column:3; }
+
+.stop:nth-child(even) .stop-card{ grid-column:3; }
+.stop:nth-child(even) .stop-spine{ grid-column:2; }
+.stop:nth-child(even) .stop-empty{ grid-column:1; }
+
+.stop-spine{
+  display:flex;flex-direction:column;align-items:center;
+  padding-top:1rem;
+  position:relative;
+}
+
+/* road strip in the center column */
+.road-strip{
+  position:absolute;
+  left:50%;transform:translateX(-50%);
+  top:0;bottom:0;
+  width:52px;
+  background:#2a2a2a;
+  border-left:3px solid #444;
+  border-right:3px solid #444;
+  z-index:0;
+}
+/* dashed center line */
+.road-strip::after{
+  content:'';
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:0;bottom:0;width:3px;
+  background:repeating-linear-gradient(
+    180deg,
+    #f5e642 0px,#f5e642 20px,
+    transparent 20px,transparent 40px
+  );
+}
+
+/* milestone marker */
+.milestone{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--purple);
+  border:3px solid var(--purple3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;z-index:3;position:relative;
+  box-shadow:0 0 20px rgba(124,58,237,0.7),0 0 40px rgba(124,58,237,0.3);
+  flex-shrink:0;
+  margin-top:1rem;
+}
+
+/* connector arm from card to road */
+.arm{
+  height:3px;
+  background:linear-gradient(90deg,var(--purple),transparent);
+  position:absolute;top:calc(1rem + 22px);
+  width:calc(50% - 26px);z-index:2;
+}
+.stop:nth-child(odd) .arm{
+  left:calc(50% + 26px);
+  background:linear-gradient(90deg,transparent,var(--purple));
+  left:auto;right:calc(50% + 26px);
+}
+.stop:nth-child(even) .arm{
+  left:calc(50% + 26px);
+}
+
+/* CARD */
+.stop-card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:16px;
+  padding:1.6rem 1.8rem;
+  position:relative;
+  overflow:hidden;
+  backdrop-filter:blur(12px);
+  transition:transform 0.3s,box-shadow 0.3s;
+  margin:0.5rem 0;
+}
+.stop-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 8px 40px rgba(124,58,237,0.4);
+}
+.stop-card::before{
+  content:'';position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(135deg,rgba(124,58,237,0.08) 0%,transparent 60%);
+  pointer-events:none;
+}
+
+.card-num{
+  font-size:10px;letter-spacing:3px;text-transform:uppercase;
+  color:var(--purple3);font-family:'Courier New',monospace;
+  margin-bottom:0.5rem;
+}
+.card-icon{
+  font-size:2rem;margin-bottom:0.6rem;display:block;
+}
+.card-title{
+  font-size:1.35rem;font-weight:700;
+  color:#fff;margin-bottom:0.3rem;line-height:1.2;
+}
+.card-sub{
+  font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--purple3);margin-bottom:0.9rem;
+  font-family:'Courier New',monospace;
+}
+.card-body{
+  font-size:0.92rem;line-height:1.65;
+  color:rgba(255,255,255,0.72);
+}
+.card-tags{
+  display:flex;flex-wrap:wrap;gap:6px;margin-top:1rem;
+}
+.tag{
+  background:rgba(124,58,237,0.2);
+  border:1px solid rgba(168,85,247,0.3);
+  border-radius:100px;padding:3px 10px;
+  font-size:11px;color:var(--purple4);
+}
+
+/* segment stars */
+.seg-stars{
+  display:flex;gap:6px;margin-top:1rem;align-items:center;
+}
+.star{
+  font-size:1.1rem;
+  display:flex;flex-direction:column;align-items:center;
+  gap:2px;font-size:0.75rem;color:rgba(255,255,255,0.6);
+}
+.star span:first-child{font-size:1.4rem;}
+
+/* result metrics */
+.metrics{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:1rem;
+}
+.metric{
+  background:rgba(124,58,237,0.15);
+  border:1px solid rgba(168,85,247,0.2);
+  border-radius:10px;padding:10px 12px;
+}
+.metric-val{
+  font-size:1.4rem;font-weight:700;
+  color:var(--purple3);line-height:1;
+}
+.metric-label{
+  font-size:0.72rem;color:rgba(255,255,255,0.5);
+  margin-top:3px;
+}
+
+/* ambulance between cards */
+.ambulance-row{
+  display:flex;justify-content:center;align-items:center;
+  height:70px;position:relative;z-index:3;
+}
+.van{
+  font-size:2.2rem;
+  animation:drive 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 12px rgba(124,58,237,0.6));
+}
+@keyframes drive{
+  0%,100%{transform:translateX(-8px) rotate(-1deg);}
+  50%{transform:translateX(8px) rotate(1deg);}
+}
+
+/* ── FINAL SECTION ── */
+#final{
+  background:linear-gradient(180deg,#1a0533,#0a0218);
+  padding:4rem 1.5rem 6rem;
+  text-align:center;
+}
+#final h2{
+  font-size:2rem;font-weight:800;
+  background:linear-gradient(135deg,#fff,var(--purple3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin-bottom:0.5rem;
+}
+#final .fin-sub{color:rgba(255,255,255,0.4);font-size:0.9rem;margin-bottom:3rem;}
+
+.findings{
+  max-width:680px;margin:0 auto 3rem;
+  display:flex;flex-direction:column;gap:12px;text-align:left;
+}
+.finding{
+  display:flex;gap:12px;align-items:flex-start;
+  background:rgba(124,58,237,0.1);
+  border:1px solid rgba(168,85,247,0.25);
+  border-radius:12px;padding:1rem 1.2rem;
+}
+.finding-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--purple3);flex-shrink:0;
+  margin-top:5px;
+  box-shadow:0 0 8px rgba(192,132,252,0.6);
+}
+.finding-text{font-size:0.92rem;color:rgba(255,255,255,0.78);line-height:1.6;}
+
+.apps-row{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:10px;
+  margin-bottom:3rem;
+}
+.app-badge{
+  background:rgba(15,5,30,0.8);
+  border:1px solid rgba(168,85,247,0.3);
+  border-radius:10px;padding:8px 16px;
+  font-size:0.85rem;color:var(--purple4);
+  display:flex;align-items:center;gap:6px;
+}
+
+.sdg-row{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:10px;
+}
+.sdg{
+  background:rgba(124,58,237,0.15);
+  border:1px solid rgba(168,85,247,0.2);
+  border-radius:8px;padding:6px 14px;
+  font-size:11px;color:rgba(255,255,255,0.5);
+}
+
+/* ── STICKY NAV DOTS ── */
+#nav-dots{
+  position:fixed;right:1.2rem;top:50%;transform:translateY(-50%);
+  z-index:100;
+  display:flex;flex-direction:column;gap:8px;
+}
+.ndot{
+  width:7px;height:7px;border-radius:50%;
+  background:rgba(255,255,255,0.2);
+  cursor:pointer;transition:all 0.3s;
+}
+.ndot.active{
+  background:var(--purple3);
+  box-shadow:0 0 10px rgba(192,132,252,0.7);
+  transform:scale(1.5);
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:640px){
+  .stop{grid-template-columns:1fr 48px 1fr;}
+  .road-strip{width:40px;}
+  .card-title{font-size:1.1rem;}
+  .metrics{grid-template-columns:1fr;}
+}
+.top-nav{
+
+    position: fixed;
+
+    top: 0;
+
+    left: 0;
+
+    width: 100%;
+
+    height: 72px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 0 42px;
+
+    background: rgba(7, 4, 20, 0.86);
+
+    backdrop-filter: blur(12px);
+
+    z-index: 9999;
+
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+
+}
+
+.logo{
+
+    color: white;
+
+    font-size: 1.25rem;
+
+    font-weight: 700;
+
+    letter-spacing: 1px;
+
+}
+
+.nav-links{
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 24px;
+
+}
+
+.nav-links a{
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 0.95rem;
+
+    transition: 0.3s ease;
+
+}
+
+.nav-links a:hover{
+
+    color: #c084fc;
+
+}
+
+.login-btn{
+
+    background: linear-gradient(
+        135deg,
+        #7c3aed,
+        #9333ea
+    );
+
+    padding: 10px 18px;
+
+    border-radius: 14px;
+
+}
+
+.login-btn:hover{
+
+    transform: translateY(-2px);
+
+}
+</style>
+</head>
+<body>
+  <nav class="top-nav">
+
+    <div class="logo">
+        Opti Rota
+    </div>
+
+    <div class="nav-links">
+
+        <a href="/">Ana Sayfa</a>
+
+        <a href="/rotalama">
+            Rotalama
+        </a>
+
+        <a href="/musteri-segmentasyonu">
+            Segmentasyon
+        </a>
+
+        <a href="/lstm-egitimi">
+            LSTM Eğitimi
+        </a>
+
+        <a href="/hakkimizda">
+            Hakkımızda
+        </a>
+
+        <a href="/login" class="login-btn">
+            Giriş Yap
+        </a>
+
+    </div>
+
+</nav>
+
+<!-- HEADER -->
+<section id="header">
+  <div class="stars"></div>
+  <div class="header-content">
+    <div class="cencora-badge"><div class="live-dot"></div>Cencora × İlaç Lojistiği</div>
+    <h1>Akıllı Öncelik,<br>Akıllı Rota</h1>
+    <p class="header-sub">İlaç Dağıtımında Entegre Bir Araç Rotalama Optimizasyonu</p>
+    <p class="header-sub" style="font-size:0.85rem;margin-top:-0.5rem;">Doç. Dr. Gökhan Özçelik</p>
+    <div class="team-chips">
+      <span class="chip">Adilhan Aydoğmuş</span>
+      <span class="chip">Burcu Tuncel</span>
+      <span class="chip">İ. Sude Ateşli</span>
+      <span class="chip">Öykü Deniz Özel</span>
+    </div>
+    <div class="scroll-cta">
+      <span>Rotayı Keşfet</span>
+      <div class="arrow-down"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ROAD SECTION -->
+<section id="road-section">
+  <div class="road-stops">
+
+    <!-- STOP 1 -->
+    <div class="stop" id="s1">
+      <div class="stop-card">
+        <div class="card-num">01 / 06 — Problem Tanımı</div>
+        <span class="card-icon">🚛</span>
+        <div class="card-title">Problem Tanımı</div>
+        <div class="card-sub">Araç Rotalama Problemi</div>
+        <div class="card-body">
+          Gerçek dünya ilaç dağıtım operasyonlarında birden fazla kısıt aynı anda yönetilmek zorundadır. Bu çalışma dört temel zorluğu ele alır:
+        </div>
+        <div class="card-tags">
+          <span class="tag">⏰ Zaman Pencereleri</span>
+          <span class="tag">👥 Müşteri Öncelikleri</span>
+          <span class="tag">🚐 Araç Kapasitesi</span>
+          <span class="tag">💸 Yüksek Gecikmeler</span>
+        </div>
+      </div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">🗺️</div>
+      </div>
+      <div class="stop-empty"></div>
+    </div>
+
+    <div class="ambulance-row"><div class="van">🚐</div></div>
+
+    <!-- STOP 2 -->
+    <div class="stop" id="s2">
+      <div class="stop-empty"></div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">🎯</div>
+      </div>
+      <div class="stop-card">
+        <div class="card-num">02 / 06 — Amaç</div>
+        <span class="card-icon">🎯</span>
+        <div class="card-title">Optimizasyon Hedefleri</div>
+        <div class="card-sub">Ne başarmak istiyoruz?</div>
+        <div class="card-body">
+          İki temel hedef aynı anda optimize edilmektedir:
+        </div>
+        <div class="card-tags">
+          <span class="tag">📏 Toplam Mesafe Minimizasyonu</span>
+          <span class="tag">💰 Maliyet Minimizasyonu</span>
+          <span class="tag">⚡ Öncelikli Gecikmeleri Sıfırla</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ambulance-row"><div class="van" style="animation-delay:0.5s">🚑</div></div>
+
+    <!-- STOP 3 — LSTM -->
+    <div class="stop" id="s3">
+      <div class="stop-card">
+        <div class="card-num">03 / 06 — Talep Tahmini</div>
+        <span class="card-icon">🧠</span>
+        <div class="card-title">LSTM Talep Tahmini</div>
+        <div class="card-sub">Derin Öğrenme Modeli</div>
+        <div class="card-body">
+          Long Short-Term Memory (LSTM) sinir ağı, geçmiş talep serilerini öğrenerek bir sonraki günün ilaç ihtiyacını tahmin eder. Tahmin çıktısı doğrudan rota planlamasına beslenir.
+        </div>
+        <div class="card-tags">
+          <span class="tag">📈 Zaman Serisi</span>
+          <span class="tag">🔮 Gelecek Tahmin</span>
+          <span class="tag">🐍 Python</span>
+        </div>
+      </div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">🧠</div>
+      </div>
+      <div class="stop-empty"></div>
+    </div>
+
+    <div class="ambulance-row"><div class="van" style="animation-delay:1s">🚐</div></div>
+
+    <!-- STOP 4 — K-Means -->
+    <div class="stop" id="s4">
+      <div class="stop-empty"></div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">⭐</div>
+      </div>
+      <div class="stop-card">
+        <div class="card-num">04 / 06 — Segmentasyon</div>
+        <span class="card-icon">⭐</span>
+        <div class="card-title">Müşteri Segmentasyonu</div>
+        <div class="card-sub">K-Means Kümeleme</div>
+        <div class="card-body">
+          Müşteriler coğrafi konum ve öncelik skoruna göre üç segmente ayrılır. Her segment farklı bir teslimat politikasına tabidir.
+        </div>
+        <div class="seg-stars">
+          <div class="star"><span>⭐</span>Altın</div>
+          <div class="star" style="color:rgba(255,255,255,0.4)"><span>🥈</span>Gümüş</div>
+          <div class="star" style="color:rgba(255,255,255,0.4)"><span>🥉</span>Bronz</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ambulance-row"><div class="van">🚐</div></div>
+
+    <!-- STOP 5 — ALNS -->
+    <div class="stop" id="s5">
+      <div class="stop-card">
+        <div class="card-num">05 / 06 — Optimizasyon</div>
+        <span class="card-icon">⚡</span>
+        <div class="card-title">ALNS Matheuristic</div>
+        <div class="card-sub">Adaptif Büyük Komşuluk Arama</div>
+        <div class="card-body">
+          Destroy ve Repair operatörleri dönüşümlü uygulanır. Adaptif ağırlık mekanizması başarılı operatörleri güçlendirerek arama süresini kısaltır. Nihai rotalar milisaniyeler içinde elde edilir.
+        </div>
+        <div class="card-tags">
+          <span class="tag">🔄 Destroy &amp; Repair</span>
+          <span class="tag">⚖️ Adaptif Ağırlık</span>
+          <span class="tag">🏁 Nihai Rotalar</span>
+        </div>
+      </div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">⚡</div>
+      </div>
+      <div class="stop-empty"></div>
+    </div>
+
+    <div class="ambulance-row"><div class="van" style="animation-delay:0.8s">🚑</div></div>
+
+    <!-- STOP 6 — Bulgular -->
+    <div class="stop" id="s6">
+      <div class="stop-empty"></div>
+      <div class="stop-spine">
+        <div class="road-strip"></div>
+        <div class="milestone">🏁</div>
+      </div>
+      <div class="stop-card">
+        <div class="card-num">06 / 06 — Bulgular</div>
+        <span class="card-icon">✅</span>
+        <div class="card-title">Rota Sonuçları</div>
+        <div class="card-sub">Performans & Bulgular</div>
+        <div class="card-body">Optimizasyon sonrasında elde edilen iyileşmeler:</div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-val">↓ Mesafe</div>
+            <div class="metric-label">Toplam rota uzunluğu azaldı</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">↓ Gecikme</div>
+            <div class="metric-label">Ortalama gecikme süresi iyileşti</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">⭐ Altın</div>
+            <div class="metric-label">Segment performansı belirgin arttı</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">🖥️ Karar</div>
+            <div class="metric-label">Destek sistemi sunuldu</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- FINAL -->
+<section id="final">
+  <h2>Bulgular</h2>
+  <p class="fin-sub">Sağlık lojistiği için uygulanabilir karar destek sistemi</p>
+
+  <div class="findings">
+    <div class="finding">
+      <div class="finding-dot"></div>
+      <div class="finding-text">Toplam mesafe ve ortalama gecikme sürelerinde iyileşme sağlanmıştır.</div>
+    </div>
+    <div class="finding">
+      <div class="finding-dot"></div>
+      <div class="finding-text">Altın segment müşterilerin teslimat performansında belirgin artış elde edilmiştir.</div>
+    </div>
+    <div class="finding">
+      <div class="finding-dot"></div>
+      <div class="finding-text">Sağlık lojistiği için uygulanabilir bir karar destek sistemi sunulmuştur.</div>
+    </div>
+  </div>
+
+  <p style="font-size:0.8rem;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;margin-bottom:1rem;">Kullanılan Uygulamalar</p>
+  <div class="apps-row">
+    <div class="app-badge">🐍 Python</div>
+    <div class="app-badge">⬛ Node.js</div>
+    <div class="app-badge">🎨 CSS3</div>
+    <div class="app-badge">🌐 HTML5</div>
+    <div class="app-badge">📊 JavaScript</div>
+    <div class="app-badge">📈 Chart.js</div>
+  </div>
+
+  <p style="font-size:0.8rem;color:rgba(255,255,255,0.3);letter-spacing:2px;text-transform:uppercase;margin-bottom:1rem;">Sürdürülebilir Kalkınma Hedefleri</p>
+  <div class="sdg-row">
+    <div class="sdg">🌤 SDG 7 — Temiz Enerji</div>
+    <div class="sdg">⚙️ SDG 9 — Sanayi & Altyapı</div>
+    <div class="sdg">🏙 SDG 11 — Sürdürülebilir Şehirler</div>
+    <div class="sdg">♻️ SDG 12 — Sürdürülebilir Üretim</div>
+  </div>
+</section>
+
+<!-- NAV DOTS -->
+<div id="nav-dots">
+  <div class="ndot active" data-target="header"></div>
+  <div class="ndot" data-target="s1"></div>
+  <div class="ndot" data-target="s2"></div>
+  <div class="ndot" data-target="s3"></div>
+  <div class="ndot" data-target="s4"></div>
+  <div class="ndot" data-target="s5"></div>
+  <div class="ndot" data-target="s6"></div>
+  <div class="ndot" data-target="final"></div>
+</div>
+
+<script>
+/* NAV DOTS */
+const ndots = document.querySelectorAll('.ndot');
+ndots.forEach(d => {
+  d.addEventListener('click', () => {
+    const el = document.getElementById(d.dataset.target);
+    if(el) el.scrollIntoView({behavior:'smooth'});
+  });
+});
+
+const sections = ['header','s1','s2','s3','s4','s5','s6','final'];
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      const idx = sections.indexOf(e.target.id);
+      ndots.forEach((d,i) => d.classList.toggle('active', i === idx));
+    }
+  });
+}, { threshold: 0.4 });
+
+sections.forEach(id => {
+  const el = document.getElementById(id);
+  if(el) observer.observe(el);
+});
+
+/* CARD REVEAL ANIMATION */
+const cards = document.querySelectorAll('.stop-card, .finding, #header .header-content');
+const cardObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.15 });
+
+cards.forEach(c => {
+  c.style.opacity = '0';
+  c.style.transform = 'translateY(30px)';
+  c.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+  cardObs.observe(c);
+});
+</script>
+</body>
+</html>

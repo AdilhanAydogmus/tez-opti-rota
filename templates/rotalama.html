@@ -1,0 +1,733 @@
+{% from "macros.html" import navbar %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Araç Rotalama — Tez Platformu</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* ── Harita ──────────────────────────────────────── */
+.map-box {
+  height: 520px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(168,85,247,0.25);
+  background: #0d0d1a;
+}
+.map-wrap { position: relative; }
+
+/* ── Rota liste kartı ────────────────────────────── */
+.route-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(168,85,247,0.15);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  background: rgba(124,58,237,0.04);
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.15s;
+}
+.route-item:hover  { background: rgba(124,58,237,0.12); border-color: rgba(168,85,247,0.4); transform: translateX(2px); }
+.route-item.active { background: rgba(124,58,237,0.2);  border-color: var(--purple2); }
+
+.route-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+  box-shadow: 0 0 6px currentColor;
+}
+.route-body  { flex: 1; min-width: 0; }
+.route-name  { font-weight: 700; font-size: 0.84rem; color: var(--purple3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route-meta  { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+.route-path  { font-size: 0.72rem; color: rgba(255,255,255,0.35); margin-top: 3px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Servis sekme filtreleri ─────────────────────── */
+.service-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.stab {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid rgba(168,85,247,0.25);
+  background: rgba(124,58,237,0.05);
+  color: rgba(255,255,255,0.55);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.stab:hover  { border-color: rgba(168,85,247,0.55); color: white; }
+.stab.active { background: rgba(124,58,237,0.28); border-color: var(--purple2); color: white; }
+
+/* ── Loading overlay ─────────────────────────────── */
+.osrm-loading {
+  position: absolute; inset: 0;
+  background: rgba(5,5,15,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.8);
+  gap: 10px;
+  backdrop-filter: blur(2px);
+}
+
+/* ── Araç marker pulse ───────────────────────────── */
+@keyframes car-glow {
+  0%,100% { opacity: 1;  transform: scale(1); }
+  50%      { opacity: .7; transform: scale(1.25); }
+}
+.car-marker-el { animation: car-glow 1.8s ease-in-out infinite; }
+
+/* ── İstatistik kartları ─────────────────────────── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.stat-card {
+  background: rgba(124,58,237,0.08);
+  border: 1px solid rgba(168,85,247,0.18);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.stat-val   { font-size: 1.25rem; font-weight: 800; color: var(--purple3); }
+.stat-label { font-size: 0.7rem;  color: var(--text-muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="stars-bg"></div>
+<div id="toast-container"></div>
+{{ navbar('rotalama') }}
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>🗺️ Araç Rotalama</h1>
+    <p>ALNS Matheuristic ile optimize edilmiş teslimat rotaları</p>
+  </div>
+
+  <!-- PIPELINE -->
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:2rem;">
+    <div class="badge" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);font-size:0.82rem;padding:7px 14px;">① LSTM Eğitimi ✓</div>
+    <div style="color:rgba(168,85,247,0.4);font-size:1.1rem;">→</div>
+    <div class="badge" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);font-size:0.82rem;padding:7px 14px;">② Segmentasyon ✓</div>
+    <div style="color:rgba(168,85,247,0.4);font-size:1.1rem;">→</div>
+    <div class="badge badge-purple" style="font-size:0.82rem;padding:7px 14px;">③ Rotalama</div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" id="rota-tabs">
+    <button class="tab active" data-tab="tez">Tez Rotaları</button>
+    <button class="tab" data-tab="kendi">Kendi Verim</button>
+    <button class="tab" data-tab="gecmis">Geçmiş</button>
+  </div>
+
+  <!-- ═══════ TEZ ROTALAMA ═══════ -->
+  <div data-tab-content="tez" class="tab-content active">
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:1.25rem;">
+
+      <!-- SOL PANEL -->
+      <div style="display:flex;flex-direction:column;gap:.9rem;">
+
+        <!-- Özet istatistik -->
+        <div class="card" style="padding:1rem;">
+          <div class="card-title" style="margin-bottom:.75rem;"><span>📊</span> Özet</div>
+          <div id="tez-rota-summary" style="color:var(--text-muted);font-size:0.85rem;">—</div>
+        </div>
+
+        <!-- Servis Filtresi -->
+        <div class="card" style="padding:1rem;">
+          <div class="card-title" style="margin-bottom:.6rem;"><span>🔀</span> Servis</div>
+          <div class="service-tabs" id="tez-service-tabs"></div>
+        </div>
+
+        <!-- Rota Listesi -->
+        <div class="card" style="padding:1rem;flex:1;overflow-y:auto;max-height:340px;">
+          <div class="card-title" style="margin-bottom:.6rem;"><span>🚐</span> Rotalar</div>
+          <div id="tez-rota-list" style="color:var(--text-muted);font-size:0.85rem;">Yükleniyor...</div>
+        </div>
+
+        <button id="tez-rota-load" class="btn btn-primary" style="width:100%;justify-content:center;">
+          🔄 Yenile
+        </button>
+        <a href="/download-rotalama" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">
+          ⬇️ Excel İndir
+        </a>
+      </div>
+
+      <!-- HARİTA -->
+      <div class="card" style="padding:1rem;">
+        <div class="card-title" style="margin-bottom:.75rem;">
+          <span>🗺️</span> Harita
+          <span id="tez-osrm-status" style="margin-left:8px;font-size:0.73rem;color:var(--text-muted);font-weight:400;"></span>
+        </div>
+        <div class="map-wrap">
+          <div id="map" class="map-box"></div>
+          <div class="osrm-loading" id="tez-map-loading">
+            <div class="spinner" style="width:18px;height:18px;border-width:2px;"></div>
+            Gerçek yollar yükleniyor…
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ KENDİ VERİM ═══════ -->
+  <div data-tab-content="kendi" class="tab-content">
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:1.25rem;">
+
+      <div>
+        <div class="card">
+          <div class="card-title"><span>⚙️</span> Rotalama Parametreleri</div>
+
+          <div class="form-group">
+            <label class="form-label">📁 Rota Veri Dosyası (Excel) <span style="color:#ef4444">*</span></label>
+            <div class="file-drop" id="rota-drop">
+              <input type="file" id="rota-file" accept=".xlsx,.xls">
+              <div>📂 Dosya seç veya sürükle bırak</div>
+              <div id="rota-file-name" style="color:var(--purple3);margin-top:5px;font-size:0.83rem;"></div>
+            </div>
+            <p class="form-hint">Sheet'ler: <code style="background:rgba(124,58,237,0.2);padding:1px 5px;border-radius:3px;">talep, araç, uzaklıklar, süreler, koordinatlar</code></p>
+            <a href="/static/ornek_veri.xlsx" download class="btn btn-outline btn-sm" style="margin-top:5px;font-size:0.78rem;">⬇️ Örnek Excel İndir</a>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">👥 Küme Dosyası (Excel) — opsiyonel</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+              <button type="button" id="gecmis-seg-btn" class="btn btn-outline btn-sm" style="font-size:0.8rem;padding:4px 12px;">
+                🕓 Geçmiş Kümeleme Seç
+              </button>
+              <span id="gecmis-seg-secili" style="font-size:0.8rem;color:#6ee7b7;display:none;"></span>
+            </div>
+            <div class="file-drop" id="kume-drop" style="padding:0.75rem;">
+              <input type="file" id="kume-file" accept=".xlsx,.xls">
+              <div id="kume-file-name" style="font-size:0.83rem;">📂 Küme dosyası (boş = tez kümeleri)</div>
+            </div>
+            <div id="gecmis-seg-bilgi" style="display:none;margin-top:6px;padding:9px 12px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.22);border-radius:9px;font-size:0.8rem;color:#6ee7b7;"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">🔄 İterasyon Sayısı</label>
+            <input type="number" id="rota-iter" class="form-input" value="500" min="50" max="5000" step="50">
+            <p class="form-hint">Daha fazla = daha iyi ama daha yavaş</p>
+          </div>
+
+          <div id="rota-guard-msg" style="display:none;margin-top:.5rem;padding:9px 12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);border-radius:9px;font-size:0.82rem;color:#fcd34d;">
+            ⚠️ Rotalama için <a href="/login" style="color:var(--purple3);">giriş yapın</a>.
+          </div>
+
+          <button id="rota-run-btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem;">
+            🚀 Rotaları Hesapla
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="margin-bottom:1rem;">
+          <div id="kendi-rota-summary" style="color:var(--text-muted);font-size:0.86rem;text-align:center;padding:1rem 0;">
+            Rotalama başlatıldıktan sonra özet burada görünecek.
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1rem;display:none;" id="kendi-service-card">
+          <div class="card-title" style="margin-bottom:6px;"><span>🔀</span> Servis</div>
+          <div class="service-tabs" id="kendi-service-tabs"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:.75rem;">
+            <span>🗺️</span> Harita
+            <span id="kendi-osrm-status" style="margin-left:8px;font-size:0.73rem;color:var(--text-muted);font-weight:400;"></span>
+          </div>
+          <div class="map-wrap">
+            <div id="map2" class="map-box"></div>
+            <div class="osrm-loading" id="kendi-map-loading">
+              <div class="spinner" style="width:18px;height:18px;border-width:2px;"></div>
+              Gerçek yollar yükleniyor…
+            </div>
+          </div>
+        </div>
+        <div id="kendi-rota-list" style="margin-top:1rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ GEÇMİŞ ═══════ -->
+  <div data-tab-content="gecmis" class="tab-content">
+    <div class="card">
+      <div class="card-title"><span>🕐</span> Rotalama Geçmişi</div>
+      <div id="rota-history">
+        <div class="loading-overlay"><div class="spinner"></div>Yükleniyor...</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ROTALAMA  —  Temiz versiyon
+   • OSRM gerçek yollar
+   • Araç hareketi (polyline boyunca smooth animasyon)
+   • Servis bazlı filtre
+═══════════════════════════════════════════════════════════ */
+
+const ROUTE_COLORS = ['#c084fc','#60a5fa','#34d399','#fb923c','#f472b6','#a78bfa','#38bdf8','#fbbf24','#e879f9','#4ade80'];
+
+let map1 = null, map2Inst = null;
+
+const mapState = {
+  tez:   { routes:[], activeService:'Tümü', layers:[], animations:[] },
+  kendi: { routes:[], activeService:'Tümü', layers:[], animations:[] }
+};
+
+/* ── OSRM gerçek yol ────────────────────────────── */
+async function fetchOSRM(coords) {
+  if (coords.length < 2) return null;
+  const pts = coords.map(c => `${c.lng},${c.lat}`).join(';');
+  try {
+    const r = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${pts}?overview=full&geometries=geojson`,
+      { signal: AbortSignal.timeout(9000) }
+    );
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (d.code !== 'Ok' || !d.routes?.length) return null;
+    return d.routes[0].geometry.coordinates.map(c => [c[1], c[0]]); // lng,lat → lat,lng
+  } catch { return null; }
+}
+
+/* ── Araç ikonu ─────────────────────────────────── */
+function carIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="car-marker-el" style="font-size:17px;filter:drop-shadow(0 0 5px ${color});">🚐</div>`,
+    iconSize: [22,22], iconAnchor: [11,11]
+  });
+}
+
+function stopIcon(color, label, isDepot) {
+  if (isDepot) {
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:#ef4444;border:2px solid #fff;box-shadow:0 0 8px #ef444499;display:flex;align-items:center;justify-content:center;font-size:7px;">🏭</div>`,
+      iconSize:[14,14], iconAnchor:[7,7]
+    });
+  }
+  return L.divIcon({
+    className: '',
+    html: `<div style="min-width:16px;height:16px;border-radius:8px;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 5px ${color}99;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#000;padding:0 2px;">${label}</div>`,
+    iconSize:[16,16], iconAnchor:[8,8]
+  });
+}
+
+/* ── Araç polyline animasyonu ───────────────────── */
+function animateCar(mapInst, state, path, color, label, tooltipText) {
+  if (path.length < 2) return;
+  const marker = L.marker(path[0], { icon: carIcon(color), zIndexOffset: 1000 })
+    .bindTooltip(tooltipText, { permanent: false, direction: 'top' })
+    .addTo(mapInst);
+  state.layers.push(marker);
+
+  let step = 0;
+  const SPEED = 40;        // ms arasında ilerleme
+  const STEPS = path.length;
+
+  function tick() {
+    step = (step + 1) % STEPS;
+    marker.setLatLng(path[step]);
+  }
+  const id = setInterval(tick, SPEED);
+  state.animations.push(id);
+}
+
+/* ── Haritayı temizle ───────────────────────────── */
+function clearMap(mapInst, state) {
+  state.animations.forEach(id => clearInterval(id));
+  state.layers.forEach(l => { try { mapInst.removeLayer(l); } catch {} });
+  state.layers = [];
+  state.animations = [];
+}
+
+/* ── Servis haritaya çiz ────────────────────────── */
+async function drawService(mapInst, state, service, loadingId, statusId) {
+  clearMap(mapInst, state);
+
+  const routes = service === 'Tümü'
+    ? state.routes
+    : state.routes.filter(r => r.service === service);
+
+  if (!routes.length) return;
+
+  const allCoords = [];
+  let ok = 0, fail = 0;
+  const validRoutes = routes.filter(r => (r.coordinates||[]).some(c => c.lat && c.lng && c.lat !== 0));
+
+  const loadEl = document.getElementById(loadingId);
+  if (loadEl) loadEl.style.display = 'flex';
+
+  for (let i = 0; i < routes.length; i++) {
+    const route  = routes[i];
+    const color  = ROUTE_COLORS[i % ROUTE_COLORS.length];
+    const coords = (route.coordinates||[]).filter(c => c.lat && c.lng && c.lat !== 0 && c.lng !== 0);
+    if (!coords.length) continue;
+
+    const latlngs = coords.map(c => [c.lat, c.lng]);
+    allCoords.push(...latlngs);
+
+    // Geçici dashed çizgi
+    const tempLine = L.polyline(latlngs, { color, weight:2, opacity:0.25, dashArray:'5 4' }).addTo(mapInst);
+    state.layers.push(tempLine);
+
+    // Stop marker'ları
+    coords.forEach((c, j) => {
+      const isDepot = j === 0 || j === coords.length - 1;
+      const icon = stopIcon(color, c.id || String(j), isDepot && j === 0);
+      const m = L.marker([c.lat,c.lng], { icon })
+        .bindPopup(`<div style="font-size:11px;min-width:110px;line-height:1.6">
+          <b>${j===0?'🏭 Depo': j===coords.length-1?'🏭 Dönüş':'📍 '+( c.id||j)}</b><br>
+          Servis: ${route.service||'—'}<br>
+          Araç: ${route.vehicle||'—'}<br>
+          Maliyet: ${route.total_cost?.toFixed(2)||'—'}
+        </div>`, { maxWidth:180 })
+        .addTo(mapInst);
+      state.layers.push(m);
+    });
+
+    // OSRM async
+    (async (rCoords, rColor, tempL, idx, rRoute) => {
+      const path = await fetchOSRM(rCoords);
+      try { mapInst.removeLayer(tempL); } catch {}
+
+      let finalPath;
+      if (path && path.length > 1) {
+        ok++;
+        finalPath = path;
+        const line = L.polyline(path, {
+          color: rColor, weight: 4, opacity: 0.82, smoothFactor: 1
+        }).addTo(mapInst);
+        state.layers.push(line);
+      } else {
+        fail++;
+        finalPath = rCoords.map(c => [c.lat,c.lng]);
+        const line = L.polyline(finalPath, {
+          color: rColor, weight: 3, opacity: 0.65, dashArray: '7 5'
+        }).addTo(mapInst);
+        state.layers.push(line);
+      }
+
+      // Araç hareketi
+      animateCar(mapInst, state, finalPath, rColor, idx,
+        `🚐 Araç ${rRoute.vehicle||idx+1}${rRoute.service?' · '+rRoute.service:''}`);
+
+      const done = ok + fail;
+      if (done >= validRoutes.length) {
+        if (loadEl) loadEl.style.display = 'none';
+        const st = document.getElementById(statusId);
+        if (st) st.textContent = ok > 0 ? `✅ ${ok} rota gerçek yolda` : '⚠️ OSRM bağlanamadı';
+      }
+    })(coords, color, tempLine, i, route);
+  }
+
+  if (allCoords.length) mapInst.fitBounds(allCoords, { padding:[30,30] });
+}
+
+/* ── Servis tabları ─────────────────────────────── */
+function buildServiceTabs(routes, tabsId, mapInst, state, loadingId, statusId) {
+  const services = ['Tümü', ...new Set(routes.map(r=>r.service).filter(Boolean))];
+  const el = document.getElementById(tabsId);
+  if (!el) return;
+  el.innerHTML = services.map(s =>
+    `<button class="stab${s==='Tümü'?' active':''}" data-svc="${s}">${s==='Tümü'?'Tümü':s.toUpperCase()}</button>`
+  ).join('');
+  el.querySelectorAll('.stab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeService = btn.dataset.svc;
+      updateRouteList(routes, state.activeService, mapInst===map1?'tez-rota-list':'kendi-rota-list');
+      drawService(mapInst, state, state.activeService, loadingId, statusId);
+    });
+  });
+}
+
+/* ── Rota listesini güncelle ────────────────────── */
+function updateRouteList(routes, activeService, listId) {
+  const filtered = activeService==='Tümü' ? routes : routes.filter(r=>r.service===activeService);
+  const el = document.getElementById(listId);
+  if (!el) return;
+  if (!filtered.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);padding:.4rem;font-size:0.83rem;">Bu serviste rota yok.</p>';
+    return;
+  }
+  el.innerHTML = filtered.map((r,i) => {
+    const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+    const stops = (r.route||[]).join(' → ');
+    return `<div class="route-item" onclick="this.classList.toggle('active')">
+      <div class="route-dot" style="background:${color};color:${color};"></div>
+      <div class="route-body">
+        <div class="route-name">🚐 Araç ${r.vehicle||i+1}
+          <span style="font-weight:400;font-size:0.71rem;color:rgba(255,255,255,0.35);margin-left:5px;">${r.service||''}</span>
+        </div>
+        <div class="route-meta">
+          ₺${r.total_cost?.toFixed(2)||'—'}
+          <span style="margin-left:8px;">📍 ${(r.route||[]).length} durak</span>
+          <span style="margin-left:8px;">📏 ${r.distance_cost?.toFixed(1)||'—'} km</span>
+        </div>
+        <div class="route-path" title="${stops}">${stops}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── renderRoutes ───────────────────────────────── */
+async function renderRoutes(d, listId, summaryId, mapInst, stateKey) {
+  const routes    = d.routes || d.rota || [];
+  const totalCost = d.total_cost || d.maliyet || 0;
+  const state     = mapState[stateKey];
+  state.routes = routes;
+  state.activeService = 'Tümü';
+
+  const services = [...new Set(routes.map(r=>r.service).filter(Boolean))];
+
+  // Özet
+  document.getElementById(summaryId).innerHTML = `
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-val">${routes.length}</div><div class="stat-label">Rota</div></div>
+      <div class="stat-card"><div class="stat-val">${totalCost.toFixed(0)}</div><div class="stat-label">₺ Maliyet</div></div>
+      <div class="stat-card"><div class="stat-val">${services.length||1}</div><div class="stat-label">Servis</div></div>
+      <div class="stat-card"><div class="stat-val">${routes.reduce((s,r)=>s+(r.route?.length||0),0)}</div><div class="stat-label">Durak</div></div>
+    </div>`;
+
+  const loadingId = stateKey==='tez' ? 'tez-map-loading' : 'kendi-map-loading';
+  const statusId  = stateKey==='tez' ? 'tez-osrm-status' : 'kendi-osrm-status';
+  const tabsId    = stateKey==='tez' ? 'tez-service-tabs' : 'kendi-service-tabs';
+
+  buildServiceTabs(routes, tabsId, mapInst, state, loadingId, statusId);
+
+  if (stateKey === 'kendi') {
+    const card = document.getElementById('kendi-service-card');
+    if (card) card.style.display='';
+  }
+
+  updateRouteList(routes, 'Tümü', listId);
+
+  const firstService = services.length===1 ? services[0] : 'Tümü';
+  await drawService(mapInst, state, firstService, loadingId, statusId);
+}
+
+/* ── INIT ───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs('rota-tabs');
+  initFileDrop('rota-drop','rota-file','rota-file-name');
+  initFileDrop('kume-drop','kume-file','kume-file-name');
+
+  if (!Auth.isLoggedIn()) {
+    document.getElementById('rota-guard-msg').style.display = 'block';
+  }
+
+  function initMap(divId) {
+    const m = L.map(divId, { center:[39.9,32.8], zoom:6, attributionControl:false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(m);
+    return m;
+  }
+
+  map1 = initMap('map');
+
+  document.querySelector('[data-tab="kendi"]').addEventListener('click', () => {
+    if (!map2Inst) map2Inst = initMap('map2');
+  });
+
+  // Tez rotaları yükle
+  async function loadTezRoutes() {
+    const btn = document.getElementById('tez-rota-load');
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Yükleniyor…';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/rotalama/tez', { headers: Auth.headers() });
+      if (!res.ok) { Toast.show('Sunucu hatası', 'error'); return; }
+      const d = await res.json();
+      await renderRoutes(d, 'tez-rota-list', 'tez-rota-summary', map1, 'tez');
+      Toast.show(`${(d.routes||[]).length} rota yüklendi!`, 'success');
+    } catch(e) { Toast.show('Rota yüklenemedi: '+e.message, 'error'); }
+    finally { btn.innerHTML = '🔄 Yenile'; btn.disabled = false; }
+  }
+
+  document.getElementById('tez-rota-load').addEventListener('click', loadTezRoutes);
+  loadTezRoutes();
+
+  // Kendi verim
+  document.getElementById('rota-run-btn').addEventListener('click', async () => {
+    if (!requireLogin('rotalama yapmak')) return;
+    const file = document.getElementById('rota-file').files[0];
+    if (!file) { Toast.show('Lütfen veri dosyası seçin.','warning'); return; }
+
+    const btn = document.getElementById('rota-run-btn');
+    btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Hesaplanıyor…';
+    btn.disabled = true;
+    document.getElementById('kendi-rota-summary').innerHTML =
+      '<div class="loading-overlay"><div class="spinner"></div><p>Rotalar optimize ediliyor…</p></div>';
+
+    try {
+      const fd = new FormData();
+      fd.append('veri_dosyasi', file);
+      const kumeFile = document.getElementById('kume-file').files[0];
+      if (kumeFile) fd.append('kume_dosyasi', kumeFile);
+      fd.append('iterations', document.getElementById('rota-iter').value);
+
+      const res = await apiFetch('/rotalama/kendi-verilerim', { method:'POST', body:fd });
+      const d   = await res.json();
+      if (!res.ok) {
+        Toast.show(d.detail||'Hata', 'error');
+        document.getElementById('kendi-rota-summary').innerHTML =
+          '<p style="color:#fca5a5;text-align:center;">İşlem başarısız.</p>';
+        return;
+      }
+
+      if (!map2Inst) map2Inst = initMap('map2');
+      await renderRoutes(d, 'kendi-rota-list', 'kendi-rota-summary', map2Inst, 'kendi');
+      Toast.show(`${(d.rota||d.routes||[]).length} rota hesaplandı!`, 'success');
+    } catch(e) {
+      if (e.message !== 'UNAUTHORIZED') Toast.show('Hata: '+e.message, 'error');
+    } finally {
+      btn.innerHTML = '🚀 Rotaları Hesapla';
+      btn.disabled = false;
+    }
+  });
+
+  // Geçmiş
+  document.querySelector('[data-tab="gecmis"]').addEventListener('click', loadHistory);
+  async function loadHistory() {
+    if (!Auth.isLoggedIn()) {
+      document.getElementById('rota-history').innerHTML =
+        `<div style="text-align:center;padding:2rem;color:var(--text-muted);">Geçmişi görmek için <a href="/login" style="color:var(--purple3);">giriş yapın</a>.</div>`;
+      return;
+    }
+    try {
+      const res  = await apiFetch('/gecmis/rotalama');
+      const data = await res.json();
+      if (!data.length) {
+        document.getElementById('rota-history').innerHTML =
+          '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Henüz rotalama yapılmamış.</p>';
+        return;
+      }
+      const rows = data.map(r => `<tr>
+        <td>${new Date(r.tarih).toLocaleString('tr-TR')}</td>
+        <td>${r.toplam_maliyet?.toFixed(2)||'—'}</td>
+        <td>${r.rota_sayisi||'—'}</td>
+      </tr>`).join('');
+      document.getElementById('rota-history').innerHTML = `
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Tarih</th><th>Toplam Maliyet</th><th>Rota Sayısı</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    } catch(e) { if (e.message !== 'UNAUTHORIZED') Toast.show('Geçmiş yüklenemedi','error'); }
+  }
+
+  // ── Geçmiş Kümeleme Seçimi ───────────────────────────────
+  let _secilenSegBlob = null; // indirilmiş Excel blob
+
+  document.getElementById('gecmis-seg-btn').addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { Toast.show('Geçmiş kümeleme görmek için giriş yapın.','warning'); return; }
+    await gosterGecmisSegModal();
+  });
+
+  async function gosterGecmisSegModal() {
+    document.getElementById('gecmis-seg-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'gecmis-seg-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+      <div style="background:var(--card-bg,#1e1b2e);border:1px solid rgba(168,85,247,0.3);border-radius:16px;width:100%;max-width:660px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid rgba(168,85,247,0.15);display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;font-size:1.05rem;">🕓 Kayıtlı Kümeleme Sonuçları</span>
+          <button id="seg-modal-kapat" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.3rem;line-height:1;">✕</button>
+        </div>
+        <div id="seg-modal-icerik" style="overflow-y:auto;padding:1.2rem 1.5rem;flex:1;">
+          <div style="text-align:center;color:var(--text-muted);padding:2rem;">Yükleniyor…</div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#seg-modal-kapat').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+
+    try {
+      const res = await apiFetch('/gecmis/segmentasyon');
+      const liste = await res.json();
+      const icerik = document.getElementById('seg-modal-icerik');
+
+      if (!liste.length) {
+        icerik.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Henüz kümeleme yapılmamış.<br>Müşteri Segmentasyonu sayfasından kümeleme çalıştırın.</p>';
+        return;
+      }
+
+      icerik.innerHTML = `<p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1rem;">Bir kümeleme sonucu seçin — rotalama bu kümeleri kullanacak.</p><div style="display:flex;flex-direction:column;gap:0.7rem;" id="seg-karti-listesi"></div>`;
+
+      liste.forEach(s => {
+        const kart = document.createElement('div');
+        const tarih = new Date(s.tarih).toLocaleString('tr-TR');
+        const mevcutMu = s.excel_download != null;
+        kart.style.cssText = `padding:0.9rem 1.1rem;border-radius:10px;cursor:${mevcutMu?'pointer':'default'};border:1px solid ${mevcutMu?'rgba(168,85,247,0.25)':'rgba(100,100,100,0.2)'};background:rgba(168,85,247,0.04);transition:background 0.15s;opacity:${mevcutMu?1:0.5};`;
+        kart.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">
+            <div>
+              <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">${mevcutMu?'📊':'⚠️'} Kümeleme #${s.id} — ${tarih}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">
+                Küme: ${s.n_clusters||'—'} &nbsp;|&nbsp; En İyi K: ${s.en_iyi_k||'—'} &nbsp;|&nbsp; Silhouette: ${s.silhouette_skoru?.toFixed(3)||'—'} &nbsp;|&nbsp; Window: ${s.window_size||'—'}
+              </div>
+              ${!mevcutMu?'<div style="font-size:0.78rem;color:#f87171;margin-top:3px;">⚠️ Excel dosyası artık mevcut değil</div>':''}
+            </div>
+            ${mevcutMu?`<button class="btn btn-primary btn-sm sec-btn" style="white-space:nowrap;flex-shrink:0;">Seç</button>`:''}
+          </div>`;
+        if (mevcutMu) {
+          kart.addEventListener('mouseenter', () => kart.style.background='rgba(168,85,247,0.10)');
+          kart.addEventListener('mouseleave', () => kart.style.background='rgba(168,85,247,0.04)');
+          kart.querySelector('.sec-btn').addEventListener('click', async () => {
+            kart.querySelector('.sec-btn').innerHTML='<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div>';
+            try {
+              const r = await apiFetch(s.excel_download);
+              _secilenSegBlob = { blob: await r.blob(), id: s.id, tarih, n_clusters: s.n_clusters, en_iyi_k: s.en_iyi_k };
+              document.getElementById('kume-file-name').textContent = `✅ Kümeleme #${s.id} (${tarih}) seçildi`;
+              const bilgi = document.getElementById('gecmis-seg-bilgi');
+              bilgi.style.display='block';
+              bilgi.innerHTML = `📊 <strong>Kümeleme #${s.id}</strong> — ${tarih} | Küme: ${s.n_clusters||'—'} | En İyi K: ${s.en_iyi_k||'—'} | Silhouette: ${s.silhouette_skoru?.toFixed(3)||'—'}`;
+              document.getElementById('gecmis-seg-secili').style.display='inline';
+              document.getElementById('gecmis-seg-secili').textContent = `✅ #${s.id} seçildi`;
+              overlay.remove();
+              Toast.show(`Kümeleme #${s.id} seçildi.`, 'success');
+            } catch(err) {
+              Toast.show('İndirilemedi: '+err.message, 'error');
+              kart.querySelector('.sec-btn').textContent='Seç';
+            }
+          });
+        }
+        document.getElementById('seg-karti-listesi').appendChild(kart);
+      });
+    } catch(e) {
+      document.getElementById('seg-modal-icerik').innerHTML = `<p style="text-align:center;color:#f87171;padding:2rem;">Yüklenemedi: ${e.message}</p>`;
+    }
+  }
+
+  // Rotalama gönderiminde geçmiş kümeleme blob'unu FormData'ya ekle
+  document.getElementById('rota-run-btn').addEventListener('click', function injectSegBlob() {
+    // Bir sonraki click'te asıl handler çalışmadan önce blob'u dosya input'una yaz
+    if (_secilenSegBlob && !document.getElementById('kume-file').files[0]) {
+      const dt = new DataTransfer();
+      dt.items.add(new File([_secilenSegBlob.blob], `kumeleme_${_secilenSegBlob.id}.xlsx`, {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+      document.getElementById('kume-file').files = dt.files;
+    }
+  }, true); // capture — asıl submit handler'dan önce çalışır
+
+});
+</script>
+</body>
+</html>

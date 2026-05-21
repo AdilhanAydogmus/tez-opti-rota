@@ -1,0 +1,504 @@
+{% from "macros.html" import navbar %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Müşteri Segmentasyonu — Tez Platformu</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="stars-bg"></div>
+<div id="toast-container"></div>
+{{ navbar('segmentasyon') }}
+
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>⭐ Müşteri Segmentasyonu</h1>
+    <p>K-Means kümeleme ile müşteri profili analizi</p>
+  </div>
+
+  <!-- PIPELINE -->
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:2rem;">
+    <div class="badge" style="background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3);font-size:0.85rem;padding:8px 16px;">① LSTM Eğitimi ✓</div>
+    <div style="color:rgba(168,85,247,0.5);font-size:1.2rem;">→</div>
+    <div class="badge badge-purple" style="font-size:0.85rem;padding:8px 16px;">② Segmentasyon</div>
+    <div style="color:rgba(168,85,247,0.5);font-size:1.2rem;">→</div>
+    <div class="badge" style="background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.1);font-size:0.85rem;padding:8px 16px;">③ Rotalama</div>
+  </div>
+
+  <!-- LSTM AUTO-IMPORT BANNER -->
+  <div id="lstm-import-banner" style="display:none;margin-bottom:1.5rem;" class="card">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span style="font-size:1.5rem;">🧠</span>
+      <div style="flex:1;">
+        <div style="color:#6ee7b7;font-weight:700;font-size:0.95rem;">LSTM sonuçları otomatik aktarıldı</div>
+        <div style="color:var(--text-muted);font-size:0.82rem;" id="lstm-import-detail"></div>
+      </div>
+      <button id="lstm-use-btn" class="btn btn-primary btn-sm">Bu modeli kullan</button>
+      <button id="lstm-dismiss-btn" class="btn btn-outline btn-sm">Yoksay</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs" id="seg-tabs">
+    <button class="tab active" data-tab="tez">Tez Verisi</button>
+    <button class="tab" data-tab="kendi">Kendi Verim</button>
+    <button class="tab" data-tab="sonuclar">Sonuçlar</button>
+    <button class="tab" data-tab="gecmis">Geçmiş</button>
+  </div>
+
+  <!-- TEZ VERİSİ -->
+  <div data-tab-content="tez" class="tab-content active">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div class="card">
+        <div class="card-title"><span>📋</span> Tez Segmentasyon Sonuçları</div>
+        <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;margin-bottom:1rem;">
+          Tez çalışmasındaki müşteri segmentasyonu sonuçlarını görüntüleyin. K-Means algoritması ile
+          müşteriler üç segmente ayrılmıştır: Altın, Gümüş, Bronz.
+        </p>
+        <div class="metrics-grid" id="tez-seg-metrics">
+          <div class="metric-card"><div class="metric-val">—</div><div class="metric-label">Silhouette Skoru</div></div>
+          <div class="metric-card"><div class="metric-val">—</div><div class="metric-label">En İyi K</div></div>
+          <div class="metric-card"><div class="metric-val">—</div><div class="metric-label">Müşteri Sayısı</div></div>
+          <div class="metric-card"><div class="metric-val">—</div><div class="metric-label">Segment Sayısı</div></div>
+        </div>
+        <div style="margin-top:1.2rem;display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="tez-seg-btn" class="btn btn-primary">Sonuçları Yükle</button>
+          <a href="/download/musteri_kumeleme_sonuclari.xlsx" class="btn btn-outline btn-sm">⬇️ Excel İndir</a>
+          <button id="tez-to-routing-btn" class="btn btn-outline btn-sm" style="display:none;">→ Rotalamayla Kullan</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>📊</span> Kümeleme Grafikleri</div>
+        <div id="tez-seg-plots" style="text-align:center;color:var(--text-muted);padding:2rem 0;font-size:0.9rem;">
+          Sonuçları yüklemek için butona tıklayın.
+        </div>
+      </div>
+    </div>
+
+    <div id="tez-seg-table" style="display:none;margin-top:1.5rem;">
+      <div class="card">
+        <div class="card-title"><span>👥</span> Müşteri Listesi</div>
+        <div id="tez-customers-wrap" class="table-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KENDİ VERİM -->
+  <div data-tab-content="kendi" class="tab-content">
+    <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:1.5rem;">
+      <div class="card">
+        <div class="card-title"><span>⚙️</span> Segmentasyon Parametreleri</div>
+
+        <!-- LSTM auto-fill notification -->
+        <div id="auto-fill-note" style="display:none;margin-bottom:1rem;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.83rem;color:#6ee7b7;">
+          🧠 LSTM model ve scaler dosyaları otomatik olarak dolduruldu.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">📁 Veri Dosyası (CSV / Excel) <span style="color:#ef4444">*</span></label>
+          <div class="file-drop" id="seg-drop">
+            <input type="file" id="seg-file" accept=".csv,.xlsx,.xls">
+            <div>📂 Dosya seç veya sürükle bırak</div>
+            <div id="seg-file-name" style="color:var(--purple3);margin-top:6px;font-size:0.85rem;"></div>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">🔢 Küme Sayısı (K)</label>
+            <input type="number" id="seg-k" class="form-input" value="3" min="2" max="10">
+            <p class="form-hint">Önerilen: 2–5</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">📏 Window Size (Gün)</label>
+            <input type="number" id="seg-window" class="form-input" value="30" min="7" max="90">
+            <p class="form-hint">LSTM ile aynı değer</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">🤖 LSTM Model Dosyası (.h5) — opsiyonel</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <button type="button" id="gecmis-model-btn" class="btn btn-outline btn-sm" style="font-size:0.8rem;padding:4px 12px;">
+              🕓 Geçmiş Modellerden Seç
+            </button>
+            <span id="gecmis-model-secili" style="font-size:0.8rem;color:#6ee7b7;display:none;"></span>
+          </div>
+          <div class="file-drop" id="model-drop" style="padding:0.8rem;">
+            <input type="file" id="model-file" accept=".h5">
+            <div id="model-file-name" style="font-size:0.85rem;">📂 Model dosyası seç (boş bırakırsanız tez modeli kullanılır)</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">📐 Scaler Dosyası (.pkl) — opsiyonel</label>
+          <div class="file-drop" id="scaler-drop" style="padding:0.8rem;">
+            <input type="file" id="scaler-file" accept=".pkl">
+            <div id="scaler-file-name" style="font-size:0.85rem;">📂 Scaler dosyası seç (boş bırakırsanız tez scalerı kullanılır)</div>
+          </div>
+        </div>
+
+        <!-- Seçilen geçmiş model bilgisi -->
+        <div id="gecmis-model-bilgi" style="display:none;margin-bottom:0.6rem;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.82rem;color:#6ee7b7;">
+        </div>
+
+        <div id="seg-guard-msg" style="display:none;margin-top:0.5rem;padding:10px 14px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;font-size:0.84rem;color:#fcd34d;">
+          ⚠️ Segmentasyon yapmak için <a href="/login" style="color:var(--purple3);">giriş yapmanız</a> gerekiyor.
+        </div>
+
+        <button id="seg-run-btn" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem;">
+          🚀 Segmentasyonu Başlat
+        </button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>📊</span> Sonuçlar</div>
+        <div id="seg-results" style="color:var(--text-muted);font-size:0.88rem;padding:1rem 0;text-align:center;">
+          <p>Segmentasyon başlatıldıktan sonra sonuçlar burada görünecek.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SONUÇLAR -->
+  <div data-tab-content="sonuclar" class="tab-content">
+    <div class="card" id="sonuclar-card">
+      <div class="card-title"><span>🏆</span> Segment Özeti</div>
+      <div id="cluster-summary" style="color:var(--text-muted);text-align:center;padding:2rem 0;">
+        Önce Tez Verisi veya Kendi Verim sekmesinde segmentasyon çalıştırın.
+      </div>
+    </div>
+  </div>
+
+  <!-- GEÇMİŞ -->
+  <div data-tab-content="gecmis" class="tab-content">
+    <div class="card">
+      <div class="card-title"><span>🕐</span> Segmentasyon Geçmişi</div>
+      <div id="seg-history">
+        <div class="loading-overlay"><div class="spinner"></div>Yükleniyor...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs('seg-tabs');
+  initFileDrop('seg-drop','seg-file','seg-file-name');
+  initFileDrop('model-drop','model-file','model-file-name');
+  initFileDrop('scaler-drop','scaler-file','scaler-file-name');
+
+  // Check LSTM pipeline result
+  const lstmResult = Pipeline.getLSTMResult();
+  if (lstmResult) {
+    const banner = document.getElementById('lstm-import-banner');
+    banner.style.display='block';
+    document.getElementById('lstm-import-detail').textContent =
+      `MAE: ${lstmResult.mae?.toFixed(4)}, RMSE: ${lstmResult.rmse?.toFixed(4)}, MAPE: ${lstmResult.mape?.toFixed(2)}%`;
+  }
+
+  document.getElementById('lstm-use-btn')?.addEventListener('click', () => {
+    document.getElementById('auto-fill-note').style.display='block';
+    document.getElementById('lstm-import-banner').style.display='none';
+    // Switch to kendi tab
+    document.querySelector('[data-tab="kendi"]').click();
+    Toast.show('LSTM modeli segmentasyon için hazır. Veri dosyanızı yükleyip başlatın.','info');
+  });
+  document.getElementById('lstm-dismiss-btn')?.addEventListener('click', () => {
+    document.getElementById('lstm-import-banner').style.display='none';
+  });
+
+  // Guard
+  if (!Auth.isLoggedIn()) {
+    document.getElementById('seg-guard-msg').style.display='block';
+  }
+
+  // Tez segmentasyon yükle
+  document.getElementById('tez-seg-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('tez-seg-btn');
+    btn.textContent='Yükleniyor...'; btn.disabled=true;
+    try {
+      const res = await fetch('/segmentasyon/tez-verisi', {method:'POST'});
+      const d = await res.json();
+      if (!res.ok) { Toast.show(d.detail||'Yüklenemedi','error'); return; }
+
+      const cusCount = d.customers?.length || 0;
+      document.getElementById('tez-seg-metrics').innerHTML = `
+        <div class="metric-card"><div class="metric-val">${d.silhouette_score?.toFixed(3)||'—'}</div><div class="metric-label">Silhouette</div></div>
+        <div class="metric-card"><div class="metric-val">${d.best_k||'—'}</div><div class="metric-label">En İyi K</div></div>
+        <div class="metric-card"><div class="metric-val">${cusCount}</div><div class="metric-label">Müşteri</div></div>
+        <div class="metric-card"><div class="metric-val">${d.best_k||'—'}</div><div class="metric-label">Segment</div></div>
+      `;
+      document.getElementById('tez-seg-plots').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Cluster">
+          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Silhouette">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;justify-content:center;flex-wrap:wrap;">
+          <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
+          <a href="${d.excel_2}" class="btn btn-outline btn-sm">⬇️ Özet Excel</a>
+        </div>`;
+
+      // Store for routing pipeline
+      Pipeline.saveKumelemeResult(d);
+      document.getElementById('tez-to-routing-btn').style.display='inline-flex';
+
+      // Show table
+      if (d.customers?.length) {
+        renderCustomerTable(d.customers, 'tez-customers-wrap');
+        document.getElementById('tez-seg-table').style.display='block';
+      }
+      // Show cluster summary
+      renderClusterSummary(d);
+      Toast.show('Tez segmentasyon verileri yüklendi!','success');
+    } catch(e) { Toast.show('Hata: '+e.message,'error'); }
+    finally { btn.textContent='Sonuçları Yükle'; btn.disabled=false; }
+  });
+
+  document.getElementById('tez-to-routing-btn').addEventListener('click', () => {
+    Toast.show('Rotalama sayfasına yönlendiriliyorsunuz...','info');
+    setTimeout(()=>location.href='/rotalama',800);
+  });
+
+  // Run segmentation
+  document.getElementById('seg-run-btn').addEventListener('click', async () => {
+    if (!requireLogin('segmentasyon yapmak')) return;
+    const file = document.getElementById('seg-file').files[0];
+    if (!file) { Toast.show('Lütfen bir veri dosyası seçin.','warning'); return; }
+
+    const btn = document.getElementById('seg-run-btn');
+    btn.innerHTML='<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Çalışıyor...';
+    btn.disabled=true;
+    document.getElementById('seg-results').innerHTML=`<div class="loading-overlay"><div class="spinner"></div><p>Segmentasyon hesaplanıyor...</p></div>`;
+
+    try {
+      const fd = new FormData();
+      fd.append('data', file);
+      fd.append('n_clusters', document.getElementById('seg-k').value);
+      fd.append('window_size', document.getElementById('seg-window').value);
+      const modelFile = document.getElementById('model-file').files[0];
+      const scalerFile = document.getElementById('scaler-file').files[0];
+      if (modelFile) fd.append('model_file', modelFile);
+      if (scalerFile) fd.append('scaler_file', scalerFile);
+
+      const res = await apiFetch('/segmentasyon/kendi-verim', {method:'POST', body:fd});
+      const d = await res.json();
+      if (!res.ok) { Toast.show(d.detail||'Hata','error'); document.getElementById('seg-results').innerHTML='<p style="color:#fca5a5;text-align:center;">İşlem başarısız.</p>'; return; }
+
+      Pipeline.saveKumelemeResult(d);
+
+      document.getElementById('seg-results').innerHTML = `
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-val">${d.silhouette_score?.toFixed(3)}</div><div class="metric-label">Silhouette Skoru</div></div>
+          <div class="metric-card"><div class="metric-val">${d.best_k}</div><div class="metric-label">En İyi K</div></div>
+          <div class="metric-card"><div class="metric-val">${d.customers?.length||0}</div><div class="metric-label">Müşteri Sayısı</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem;">
+          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
+          <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
+          <a href="${d.excel_2}" class="btn btn-outline btn-sm">⬇️ Özet Excel</a>
+          <a href="/rotalama" class="btn btn-primary btn-sm">→ Rotalamayla Kullan</a>
+        </div>
+        <div style="margin-top:0.8rem;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.83rem;color:#6ee7b7;">
+          ✅ Sonuçlar Rotalama sayfasına otomatik aktarıldı.
+        </div>`;
+
+      renderClusterSummary(d);
+      Toast.show('Segmentasyon tamamlandı!','success');
+    } catch(e) {
+      if(e.message!=='UNAUTHORIZED') Toast.show('Hata: '+e.message,'error');
+    } finally { btn.innerHTML='🚀 Segmentasyonu Başlat'; btn.disabled=false; }
+  });
+
+  function renderCustomerTable(customers, targetId) {
+    if (!customers.length) return;
+    const cols = Object.keys(customers[0]);
+    const headers = cols.map(c=>`<th>${c}</th>`).join('');
+    const rows = customers.slice(0,50).map(row=>`<tr>${cols.map(c=>{
+      let v = row[c]; let badge='';
+      if(c.toLowerCase().includes('cluster')||c.toLowerCase().includes('kume')||c.toLowerCase().includes('segment')) {
+        if(v==0||v==='Altın'||v==='gold') badge=`<span class="badge badge-gold">⭐ Altın</span>`;
+        else if(v==1||v==='Gümüş'||v==='silver') badge=`<span class="badge badge-silver">🥈 Gümüş</span>`;
+        else if(v==2||v==='Bronz'||v==='bronze') badge=`<span class="badge badge-bronze">🥉 Bronz</span>`;
+        if(badge) return `<td>${badge}</td>`;
+      }
+      return `<td>${v??'—'}</td>`;
+    }).join('')}</tr>`).join('');
+    document.getElementById(targetId).innerHTML=`
+      <table class="data-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>
+      ${customers.length>50?`<p style="color:var(--text-muted);font-size:0.78rem;padding:8px 14px;">İlk 50 kayıt gösteriliyor (toplam ${customers.length})</p>`:''}`;
+  }
+
+  function renderClusterSummary(d) {
+    if (!d.cluster_summary?.length) return;
+    const el = document.getElementById('cluster-summary');
+    const rows = d.cluster_summary.map((r,i)=>{
+      const labels = ['⭐ Altın','🥈 Gümüş','🥉 Bronz'];
+      return `<tr><td>${labels[i]||('Küme '+i)}</td>${Object.values(r).map(v=>`<td>${typeof v==='number'?v.toFixed(3):v}</td>`).join('')}</tr>`;
+    }).join('');
+    const cols = Object.keys(d.cluster_summary[0]);
+    el.innerHTML=`<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Segment</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+    document.querySelector('[data-tab="sonuclar"]').click();
+  }
+
+  // History
+  document.querySelector('[data-tab="gecmis"]').addEventListener('click', loadHistory);
+  async function loadHistory() {
+    if (!Auth.isLoggedIn()) {
+      document.getElementById('seg-history').innerHTML=`<div style="text-align:center;padding:2rem;color:var(--text-muted);">Geçmişi görmek için <a href="/login" style="color:var(--purple3);">giriş yapın</a>.</div>`;
+      return;
+    }
+    try {
+      const res = await apiFetch('/gecmis/segmentasyon');
+      const data = await res.json();
+      if (!data.length) { document.getElementById('seg-history').innerHTML='<p style="text-align:center;color:var(--text-muted);padding:2rem;">Henüz segmentasyon yapılmamış.</p>'; return; }
+      const rows = data.map(r=>`<tr>
+        <td>${new Date(r.tarih).toLocaleString('tr-TR')}</td>
+        <td>${r.silhouette_skoru?.toFixed(3)||'—'}</td>
+        <td>${r.en_iyi_k||'—'}</td>
+      </tr>`).join('');
+      document.getElementById('seg-history').innerHTML=`<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Tarih</th><th>Silhouette</th><th>En İyi K</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    } catch(e) { if(e.message!=='UNAUTHORIZED') Toast.show('Geçmiş yüklenemedi','error'); }
+  }
+
+  // ── Geçmiş Model Seçimi ──────────────────────────────────
+  let _secilenGecmisModel = null;
+
+  document.getElementById('gecmis-model-btn').addEventListener('click', async () => {
+    if (!Auth.isLoggedIn()) { Toast.show('Geçmiş modelleri görmek için giriş yapın.','warning'); return; }
+    await gosterGecmisModelModal();
+  });
+
+  async function gosterGecmisModelModal() {
+    document.getElementById('gecmis-model-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'gecmis-model-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    overlay.innerHTML = `
+      <div style="background:var(--card-bg,#1e1b2e);border:1px solid rgba(168,85,247,0.3);border-radius:16px;width:100%;max-width:680px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:1.2rem 1.5rem;border-bottom:1px solid rgba(168,85,247,0.15);display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:600;font-size:1.05rem;">🕓 Kayıtlı LSTM Modelleri</span>
+          <button id="modal-kapat-btn" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.3rem;line-height:1;">✕</button>
+        </div>
+        <div id="modal-icerik" style="overflow-y:auto;padding:1.2rem 1.5rem;flex:1;">
+          <div style="text-align:center;color:var(--text-muted);padding:2rem;">Yükleniyor…</div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#modal-kapat-btn').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+
+    try {
+      const res = await apiFetch('/gecmis/lstm');
+      const modeller = await res.json();
+      const icerik = document.getElementById('modal-icerik');
+      if (!modeller.length) {
+        icerik.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">Henüz eğitilmiş model yok.<br>LSTM Eğitimi sayfasından bir model eğitin.</p>';
+        return;
+      }
+      icerik.innerHTML = `<p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:1rem;">Bir model seçin — segmentasyon bu modeli kullanacak.</p><div style="display:flex;flex-direction:column;gap:0.7rem;" id="model-karti-listesi"></div>`;
+      modeller.forEach(m => {
+        const kart = document.createElement('div');
+        const tarih = new Date(m.tarih).toLocaleString('tr-TR');
+        const mevcutMu = m.model_download != null;
+        kart.style.cssText = `padding:0.9rem 1.1rem;border-radius:10px;cursor:${mevcutMu?'pointer':'default'};border:1px solid ${mevcutMu?'rgba(168,85,247,0.25)':'rgba(100,100,100,0.2)'};background:rgba(168,85,247,0.04);transition:background 0.15s;opacity:${mevcutMu?1:0.5};`;
+        kart.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">
+            <div>
+              <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">${mevcutMu?'🤖':'⚠️'} Model #${m.id} — ${tarih}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted);">MAE: ${m.mae?.toFixed(4)||'—'} &nbsp;|&nbsp; RMSE: ${m.rmse?.toFixed(4)||'—'} &nbsp;|&nbsp; MAPE: ${m.mape?.toFixed(2)||'—'}% &nbsp;|&nbsp; Epoch: ${m.epochs||'—'} &nbsp;|&nbsp; Window: ${m.window_size||'—'}</div>
+              ${!mevcutMu?'<div style="font-size:0.78rem;color:#f87171;margin-top:3px;">⚠️ Model dosyası artık mevcut değil</div>':''}
+            </div>
+            ${mevcutMu?`<button class="btn btn-primary btn-sm sec-btn" style="white-space:nowrap;flex-shrink:0;">Seç</button>`:''}
+          </div>`;
+        if (mevcutMu) {
+          kart.addEventListener('mouseenter', () => kart.style.background='rgba(168,85,247,0.10)');
+          kart.addEventListener('mouseleave', () => kart.style.background='rgba(168,85,247,0.04)');
+          kart.querySelector('.sec-btn').addEventListener('click', () => {
+            _secilenGecmisModel = m;
+            document.getElementById('model-file-name').textContent = `✅ Geçmiş Model #${m.id} (${tarih}) seçildi`;
+            document.getElementById('scaler-file-name').textContent = m.scaler_download ? `✅ Geçmiş Scaler #${m.id} otomatik yüklenecek` : '📂 Scaler dosyası seç (boş bırakırsanız tez scalerı kullanılır)';
+            const bilgi = document.getElementById('gecmis-model-bilgi');
+            bilgi.style.display='block';
+            bilgi.innerHTML = `🤖 <strong>Model #${m.id}</strong> — ${tarih} | MAE: ${m.mae?.toFixed(4)||'—'} | RMSE: ${m.rmse?.toFixed(4)||'—'} | MAPE: ${m.mape?.toFixed(2)||'—'}%`;
+            document.getElementById('gecmis-model-secili').style.display='inline';
+            document.getElementById('gecmis-model-secili').textContent = `✅ Model #${m.id} seçildi`;
+            overlay.remove();
+            Toast.show(`Model #${m.id} seçildi.`, 'success');
+          });
+        }
+        document.getElementById('model-karti-listesi').appendChild(kart);
+      });
+    } catch(e) {
+      document.getElementById('modal-icerik').innerHTML = `<p style="text-align:center;color:#f87171;padding:2rem;">Modeller yüklenemedi: ${e.message}</p>`;
+    }
+  }
+
+  // Segmentasyon çalıştırılırken geçmiş model varsa onu kullan
+  document.getElementById('seg-run-btn').addEventListener('click', async function(e) {
+    if (!_secilenGecmisModel || document.getElementById('model-file').files[0]) return; // normal akış devam eder
+    e.stopImmediatePropagation();
+    const file = document.getElementById('seg-file').files[0];
+    if (!file) { Toast.show('Lütfen bir veri dosyası seçin.','warning'); return; }
+    const btn = document.getElementById('seg-run-btn');
+    btn.innerHTML='<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Çalışıyor...';
+    btn.disabled=true;
+    document.getElementById('seg-results').innerHTML=`<div class="loading-overlay"><div class="spinner"></div><p>Model indiriliyor, segmentasyon hesaplanıyor...</p></div>`;
+    try {
+      const modelRes = await apiFetch(_secilenGecmisModel.model_download);
+      const modelBlob = await modelRes.blob();
+      const fd = new FormData();
+      fd.append('data', file);
+      fd.append('n_clusters', document.getElementById('seg-k').value);
+      fd.append('window_size', document.getElementById('seg-window').value);
+      fd.append('model_file', new File([modelBlob], `model_${_secilenGecmisModel.id}.h5`));
+      if (_secilenGecmisModel.scaler_download) {
+        const scalerRes = await apiFetch(_secilenGecmisModel.scaler_download);
+        const scalerBlob = await scalerRes.blob();
+        fd.append('scaler_file', new File([scalerBlob], `scaler_${_secilenGecmisModel.id}.pkl`));
+      }
+      const res = await apiFetch('/segmentasyon/kendi-verim', {method:'POST', body:fd});
+      const d = await res.json();
+      if (!res.ok) { Toast.show(d.detail||'Hata','error'); document.getElementById('seg-results').innerHTML='<p style="color:#fca5a5;text-align:center;">İşlem başarısız.</p>'; return; }
+      Pipeline.saveKumelemeResult(d);
+      document.getElementById('seg-results').innerHTML = `
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-val">${d.silhouette_score?.toFixed(3)}</div><div class="metric-label">Silhouette Skoru</div></div>
+          <div class="metric-card"><div class="metric-val">${d.best_k}</div><div class="metric-label">En İyi K</div></div>
+          <div class="metric-card"><div class="metric-val">${d.customers?.length||0}</div><div class="metric-label">Müşteri Sayısı</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem;">
+          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
+          <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
+          <a href="${d.excel_2}" class="btn btn-outline btn-sm">⬇️ Özet Excel</a>
+          <a href="/rotalama" class="btn btn-primary btn-sm">→ Rotalamayla Kullan</a>
+        </div>
+        <div style="margin-top:0.8rem;padding:10px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;font-size:0.83rem;color:#6ee7b7;">
+          ✅ Sonuçlar Rotalama sayfasına otomatik aktarıldı.
+        </div>`;
+      renderClusterSummary(d);
+      Toast.show('Segmentasyon tamamlandı!','success');
+    } catch(err) {
+      if(err.message!=='UNAUTHORIZED') Toast.show('Hata: '+err.message,'error');
+    } finally { btn.innerHTML='🚀 Segmentasyonu Başlat'; btn.disabled=false; }
+  }, true);
+
+});
+</script>
+</body>
+</html>

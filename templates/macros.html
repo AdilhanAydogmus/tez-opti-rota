@@ -1,0 +1,24 @@
+{% macro navbar(active='') %}
+<nav id="navbar">
+  <a class="nav-brand" href="/">🚑 Opti Rota</a>
+  <div class="nav-links" id="nav-links">
+    <a class="nav-link {% if active=='home' %}active{% endif %}" href="/">Ana Sayfa</a>
+    <a class="nav-link {% if active=='lstm' %}active{% endif %}" href="/lstm-egitimi">LSTM Eğitimi</a>
+    <a class="nav-link {% if active=='segmentasyon' %}active{% endif %}" href="/musteri-segmentasyonu">Müşteri Segmentasyonu</a>
+    <a class="nav-link {% if active=='rotalama' %}active{% endif %}" href="/rotalama">Araç Rotalama</a>
+    <a class="nav-link {% if active=='hakkimizda' %}active{% endif %}" href="/hakkimizda">Hakkımızda</a>
+  </div>
+  <div class="nav-actions">
+    <div id="user-badge" style="display:none;">
+      <div class="dot"></div>
+      <span class="username">Kullanıcı</span>
+    </div>
+    <a id="nav-login-btn" href="/login" class="btn btn-primary btn-sm">Giriş Yap</a>
+    <button id="nav-logout-btn" class="btn btn-outline btn-sm" style="display:none;">Çıkış</button>
+    <button class="hamburger" id="hamburger" aria-label="Menü" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+{% endmacro %}
+

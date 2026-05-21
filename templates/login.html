@@ -1,0 +1,847 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<style>
+
+.auth-wrapper{
+
+    min-height:90vh;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:40px 20px;
+}
+
+.auth-card{
+
+    width:100%;
+
+    max-width:480px;
+
+    background:
+        rgba(15,5,25,0.96);
+
+    border:
+        1px solid rgba(168,85,247,0.2);
+
+    border-radius:28px;
+
+    padding:36px;
+
+    box-shadow:
+        0 10px 40px rgba(0,0,0,0.35);
+}
+
+.auth-logo{
+
+    text-align:center;
+
+    margin-bottom:32px;
+}
+
+.auth-logo h1{
+
+    font-size:34px;
+
+    font-weight:800;
+
+    margin-bottom:10px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #ffffff 10%,
+            #c084fc 100%
+        );
+
+    -webkit-background-clip:text;
+
+    -webkit-text-fill-color:transparent;
+}
+
+.auth-logo p{
+
+    color:
+        rgba(255,255,255,0.55);
+
+    font-size:15px;
+}
+
+.auth-tabs{
+
+    display:flex;
+
+    gap:12px;
+
+    margin-bottom:28px;
+}
+
+.auth-tab{
+
+    flex:1;
+
+    border:none;
+
+    padding:14px;
+
+    border-radius:14px;
+
+    cursor:pointer;
+
+    font-weight:700;
+
+    background:
+        rgba(255,255,255,0.05);
+
+    color:
+        rgba(255,255,255,0.6);
+
+    transition:0.3s;
+}
+
+.auth-tab.active{
+
+    background:
+        linear-gradient(
+            135deg,
+            #9333ea,
+            #7e22ce
+        );
+
+    color:white;
+}
+
+.auth-section{
+
+    display:none;
+}
+
+.auth-section.active{
+
+    display:block;
+}
+
+.form-group{
+
+    margin-bottom:18px;
+}
+
+.form-label{
+
+    display:block;
+
+    margin-bottom:8px;
+
+    color:white;
+
+    font-size:14px;
+
+    font-weight:600;
+}
+
+.form-input{
+
+    width:100%;
+
+    padding:14px 16px;
+
+    border-radius:14px;
+
+    border:
+        1px solid rgba(255,255,255,0.08);
+
+    background:
+        rgba(255,255,255,0.04);
+
+    color:white;
+
+    font-size:14px;
+
+    outline:none;
+
+    transition:0.3s;
+}
+
+.form-input:focus{
+
+    border-color:#9333ea;
+
+    box-shadow:
+        0 0 0 3px rgba(147,51,234,0.12);
+}
+
+.form-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:14px;
+}
+
+.btn-auth{
+
+    width:100%;
+
+    border:none;
+
+    padding:15px;
+
+    border-radius:14px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    font-weight:700;
+
+    background:
+        linear-gradient(
+            135deg,
+            #9333ea,
+            #7e22ce
+        );
+
+    color:white;
+
+    transition:0.3s;
+}
+
+.btn-auth:hover{
+
+    transform:translateY(-2px);
+
+    opacity:0.95;
+}
+
+.error-box{
+
+    display:none;
+
+    margin-bottom:18px;
+
+    padding:12px;
+
+    border-radius:12px;
+
+    background:
+        rgba(239,68,68,0.15);
+
+    border:
+        1px solid rgba(239,68,68,0.2);
+
+    color:#fecaca;
+
+    font-size:13px;
+}
+
+.success-box{
+
+    display:none;
+
+    margin-bottom:18px;
+
+    padding:12px;
+
+    border-radius:12px;
+
+    background:
+        rgba(34,197,94,0.15);
+
+    border:
+        1px solid rgba(34,197,94,0.2);
+
+    color:#bbf7d0;
+
+    font-size:13px;
+}
+
+@media(max-width:700px){
+
+    .form-grid{
+
+        grid-template-columns:1fr;
+    }
+
+    .auth-card{
+
+        padding:26px;
+    }
+}
+
+</style>
+
+<div class="auth-wrapper">
+
+    <div class="auth-card">
+
+        <div class="auth-logo">
+
+            <h1>
+                🚑 SmartRoute AI
+            </h1>
+
+            <p>
+                AI Destekli İlaç Lojistiği Platformu
+            </p>
+
+        </div>
+
+        <!-- TABS -->
+        <div class="auth-tabs">
+
+            <button
+                id="login-tab"
+                class="auth-tab active"
+            >
+
+                Giriş Yap
+
+            </button>
+
+            <button
+                id="register-tab"
+                class="auth-tab"
+            >
+
+                Kayıt Ol
+
+            </button>
+
+        </div>
+
+        <!-- LOGIN -->
+        <div
+            id="login-section"
+            class="auth-section active"
+        >
+
+            <div
+                id="login-error"
+                class="error-box"
+            ></div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Kullanıcı Adı veya Email
+                </label>
+
+                <input
+                    id="login-username"
+                    class="form-input"
+                    type="text"
+                    placeholder="kullaniciadi veya email"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Şifre
+                </label>
+
+                <input
+                    id="login-password"
+                    class="form-input"
+                    type="password"
+                    placeholder="••••••••"
+                >
+
+            </div>
+
+            <button
+                id="login-btn"
+                class="btn-auth"
+            >
+
+                Giriş Yap
+
+            </button>
+
+        </div>
+
+        <!-- REGISTER -->
+        <div
+            id="register-section"
+            class="auth-section"
+        >
+
+            <div
+                id="register-error"
+                class="error-box"
+            ></div>
+
+            <div
+                id="register-success"
+                class="success-box"
+            ></div>
+
+            <div class="form-grid">
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Ad
+                    </label>
+
+                    <input
+                        id="reg-first-name"
+                        class="form-input"
+                        type="text"
+                        placeholder="Adınız"
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Soyad
+                    </label>
+
+                    <input
+                        id="reg-last-name"
+                        class="form-input"
+                        type="text"
+                        placeholder="Soyadınız"
+                    >
+
+                </div>
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Kullanıcı Adı
+                </label>
+
+                <input
+                    id="reg-username"
+                    class="form-input"
+                    type="text"
+                    placeholder="kullaniciadi"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Email
+                </label>
+
+                <input
+                    id="reg-email"
+                    class="form-input"
+                    type="email"
+                    placeholder="email@example.com"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Şifre
+                </label>
+
+                <input
+                    id="reg-password"
+                    class="form-input"
+                    type="password"
+                    placeholder="Minimum 8 karakter"
+                >
+
+            </div>
+
+            <div class="form-group">
+
+                <label class="form-label">
+                    Şifre Tekrar
+                </label>
+
+                <input
+                    id="reg-password2"
+                    class="form-input"
+                    type="password"
+                    placeholder="Şifreyi tekrar girin"
+                >
+
+            </div>
+
+            <button
+                id="register-btn"
+                class="btn-auth"
+            >
+
+                Kayıt Ol
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// =========================================================
+// TABS
+// =========================================================
+
+const loginTab =
+    document.getElementById(
+        'login-tab'
+    );
+
+const registerTab =
+    document.getElementById(
+        'register-tab'
+    );
+
+const loginSection =
+    document.getElementById(
+        'login-section'
+    );
+
+const registerSection =
+    document.getElementById(
+        'register-section'
+    );
+
+loginTab.addEventListener('click', () => {
+
+    loginTab.classList.add('active');
+
+    registerTab.classList.remove('active');
+
+    loginSection.classList.add('active');
+
+    registerSection.classList.remove('active');
+
+});
+
+registerTab.addEventListener('click', () => {
+
+    registerTab.classList.add('active');
+
+    loginTab.classList.remove('active');
+
+    registerSection.classList.add('active');
+
+    loginSection.classList.remove('active');
+
+});
+
+
+// =========================================================
+// LOGIN
+// =========================================================
+
+document
+.getElementById('login-btn')
+.addEventListener('click', async () => {
+
+    const username =
+        document.getElementById(
+            'login-username'
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            'login-password'
+        ).value;
+
+    const errorBox =
+        document.getElementById(
+            'login-error'
+        );
+
+    errorBox.style.display =
+        'none';
+
+    if(!username || !password){
+
+        errorBox.textContent =
+            'Lütfen tüm alanları doldurun.';
+
+        errorBox.style.display =
+            'block';
+
+        return;
+    }
+
+    try{
+
+        const response = await fetch(
+
+            '/auth/token',
+
+            {
+
+                method:'POST',
+
+                headers:{
+                    'Content-Type':
+                        'application/json'
+                },
+
+                body: JSON.stringify({
+
+                    username: username,
+
+                    password: password
+
+                })
+
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if(!response.ok){
+
+            errorBox.textContent =
+                data.detail ||
+                'Giriş başarısız';
+
+            errorBox.style.display =
+                'block';
+
+            return;
+        }
+
+        // TOKEN KAYDET
+        localStorage.setItem(
+            'access_token',
+            data.access_token
+        );
+
+        localStorage.setItem(
+            'username',
+            data.username
+        );
+
+        // YÖNLENDİR
+        window.location.href =
+            '/rotalama';
+
+    }catch(err){
+
+        errorBox.textContent =
+            'Sunucu bağlantı hatası';
+
+        errorBox.style.display =
+            'block';
+    }
+
+});
+
+
+// =========================================================
+// REGISTER
+// =========================================================
+
+document
+.getElementById('register-btn')
+.addEventListener('click', async () => {
+
+    const firstName =
+        document.getElementById(
+            'reg-first-name'
+        ).value.trim();
+
+    const lastName =
+        document.getElementById(
+            'reg-last-name'
+        ).value.trim();
+
+    const username =
+        document.getElementById(
+            'reg-username'
+        ).value.trim();
+
+    const email =
+        document.getElementById(
+            'reg-email'
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            'reg-password'
+        ).value;
+
+    const password2 =
+        document.getElementById(
+            'reg-password2'
+        ).value;
+
+    const errorBox =
+        document.getElementById(
+            'register-error'
+        );
+
+    const successBox =
+        document.getElementById(
+            'register-success'
+        );
+
+    errorBox.style.display =
+        'none';
+
+    successBox.style.display =
+        'none';
+
+    if(
+
+        !firstName ||
+
+        !lastName ||
+
+        !username ||
+
+        !email ||
+
+        !password ||
+
+        !password2
+
+    ){
+
+        errorBox.textContent =
+            'Lütfen tüm alanları doldurun.';
+
+        errorBox.style.display =
+            'block';
+
+        return;
+    }
+
+    if(password.length < 8){
+
+        errorBox.textContent =
+            'Şifre minimum 8 karakter olmalı.';
+
+        errorBox.style.display =
+            'block';
+
+        return;
+    }
+
+    if(password !== password2){
+
+        errorBox.textContent =
+            'Şifreler eşleşmiyor.';
+
+        errorBox.style.display =
+            'block';
+
+        return;
+    }
+
+    try{
+
+        const fd = new FormData();
+
+        fd.append(
+            'first_name',
+            firstName
+        );
+
+        fd.append(
+            'last_name',
+            lastName
+        );
+
+        fd.append(
+            'username',
+            username
+        );
+
+        fd.append(
+            'email',
+            email
+        );
+
+        fd.append(
+            'password',
+            password
+        );
+
+        fd.append(
+            'password_confirm',
+            password2
+        );
+
+        const response = await fetch(
+
+            '/register',
+
+            {
+
+                method:'POST',
+
+                body: fd
+
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if(!response.ok){
+
+            errorBox.textContent =
+                data.detail ||
+                'Kayıt başarısız';
+
+            errorBox.style.display =
+                'block';
+
+            return;
+        }
+
+        successBox.textContent =
+            'Kayıt başarılı. Giriş yapılıyor...';
+
+        successBox.style.display =
+            'block';
+
+        // TOKEN KAYDET
+        localStorage.setItem(
+            'access_token',
+            data.access_token
+        );
+
+        // YÖNLENDİR
+        setTimeout(() => {
+
+            window.location.href =
+                '/rotalama';
+
+        }, 1000);
+
+    }catch(err){
+
+        errorBox.textContent =
+            'Sunucu bağlantı hatası';
+
+        errorBox.style.display =
+            'block';
+    }
+
+});
+
+</script>
+
+{% endblock %}
