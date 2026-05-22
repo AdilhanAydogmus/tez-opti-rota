@@ -603,8 +603,8 @@ async def gecmis_lstm(db: Session = Depends(get_db), current_user=Depends(get_cu
             "tarih": s.created_at,
             "model_path": s.model_path,
             "scaler_path": s.scaler_path,
-            "model_download": f"/download-model/{s.id}/model" if s.model_data else None,
-            "scaler_download": f"/download-model/{s.id}/scaler" if s.scaler_data else None,
+            "model_download": f"/download-model/{s.id}/model",
+            "scaler_download": f"/download-model/{s.id}/scaler",
         }
         for s in sonuclar
     ]
