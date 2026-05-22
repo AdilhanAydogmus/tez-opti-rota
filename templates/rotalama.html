@@ -1,12 +1,11 @@
-{% from "macros.html" import navbar %}
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Araç Rotalama — Tez Platformu</title>
-<link rel="stylesheet" href="/static/style.css">
+{% extends "layout.html" %}
+
+{% block extra_head %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+{% endblock %}
+
+{% block content %}
+
 <style>
 /* ── Harita ──────────────────────────────────────── */
 .map-box {
@@ -101,11 +100,6 @@
 .stat-val   { font-size: 1.25rem; font-weight: 800; color: var(--purple3); }
 .stat-label { font-size: 0.7rem;  color: var(--text-muted); margin-top: 2px; }
 </style>
-</head>
-<body>
-<div class="stars-bg"></div>
-<div id="toast-container"></div>
-{{ navbar('rotalama') }}
 
 <div class="page-wrap">
   <div class="page-header">
@@ -729,5 +723,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 </script>
-</body>
-</html>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+{% endblock %}
