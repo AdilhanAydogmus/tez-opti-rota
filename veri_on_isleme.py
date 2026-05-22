@@ -89,8 +89,12 @@ def veri_on_islem(data, window_size: int = 30, test_ratio: float = 0.10):
 
     X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
 
-    df_clean = pd.concat([train_df, test_df.groupby("store").apply(lambda x: x.iloc[window_size:])
-            .reset_index(drop=True)], ignore_index=True ).sort_values(["store", "date"])
+    test_extra = (
+    test_df.groupby("store", group_keys=False)
+    .apply(lambda x: x.iloc[window_size:])
+    .reset_index(drop=True)
+)
+    df_clean = pd.concat([train_df, test_extra], ignore_index=True).sort_values(["store", "date"])
 
     print("--- Ön İşleme Tamamlandı ---")
 
