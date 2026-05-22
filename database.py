@@ -3,6 +3,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./tez_app.db")
 
@@ -33,3 +34,24 @@ def get_db():
 def init_db():
     from models import Base
     Base.metadata.create_all(bind=engine)
+
+def run_migrations():
+    sqls = [
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS loss_plot_b64 TEXT",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS prediction_plot_b64 TEXT",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS model_data BYTEA",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS scaler_data BYTEA",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS loss_plot_path VARCHAR(500)",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS prediction_plot_path VARCHAR(500)",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS model_path VARCHAR(500)",
+        "ALTER TABLE lstm_results ADD COLUMN IF NOT EXISTS scaler_path VARCHAR(500)",
+    ]
+    with engine.connect() as conn:
+        for sql in sqls:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception as e:
+                print(f"Migration: {e}")
+
+run_migrations()
