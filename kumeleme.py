@@ -205,22 +205,24 @@ def musteri_profili_olustur(
         # PROFİL
         # =================================================
 
-        profil_listesi.append({
+        def _safe(v):
+            try:
+                f = float(v)
+                return 0.0 if (np.isnan(f) or np.isinf(f)) else f
+            except:
+                return 0.0
 
+        profil_listesi.append({
             "Store":
                 int(store_id),
-
             "Sadakat_Suresi_Ay":
-                float(sadakat_suresi_ay),
-
+                _safe(sadakat_suresi_ay),
             "Aylik_Ortalama_Ciro":
-                float(aylik_ortalama_ciro),
-
+                _safe(aylik_ortalama_ciro),
             "Aylik_Ortalama_Siparis_Sikligi":
-                float(aylik_ortalama_siparis_sikligi),
-
+                _safe(aylik_ortalama_siparis_sikligi),
             "Gelecek_Gun_Tahmini_Talep":
-                float(gelecek_gun_tahmini_talep)
+                _safe(gelecek_gun_tahmini_talep)
         })
 
     # =================================================
@@ -513,6 +515,10 @@ def kumeleme_yap(
     profil_df = profil_df.sort_values(
         "Store"
     )
+
+    # NaN / Inf temizle — JSON serialize için
+    profil_df = profil_df.replace([np.inf, -np.inf], 0).fillna(0)
+    cluster_ozet = cluster_ozet.replace([np.inf, -np.inf], 0).fillna(0)
 
     profil_excel_path = os.path.join(
         output_dir,
