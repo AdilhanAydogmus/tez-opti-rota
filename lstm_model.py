@@ -100,9 +100,13 @@ def lstm_model_egit(data, window_size=30, epochs=50, test_ratio=0.10,
     prediction_plot_b64 = _fig_to_b64(fig2)
 
     # ── Model → binary ──
-    model_buf = io.BytesIO()
-    model.save(model_buf, save_format="h5")
-    model_data = model_buf.getvalue()
+    import tempfile
+    _tmp = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
+    _tmp.close()
+    model.save(_tmp.name)
+    with open(_tmp.name, "rb") as f:
+        model_data = f.read()
+    os.remove(_tmp.name)
 
     # ── Scaler → binary ──
     scaler_buf = io.BytesIO()
