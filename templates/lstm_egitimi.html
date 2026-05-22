@@ -477,6 +477,7 @@
                 <img
                     id="loss-plot"
                     src=""
+                    alt="Loss Grafiği"
                     style="display:none;"
                 >
 
@@ -487,6 +488,7 @@
                 <img
                     id="prediction-plot"
                     src=""
+                    alt="Tahmin Grafiği"
                     style="display:none;"
                 >
 
@@ -541,6 +543,13 @@ document.getElementById('train-btn').addEventListener('click', async () => {
     loadingText.textContent = 'Model eğitimi başlatılıyor...';
     document.getElementById('train-btn').disabled = true;
 
+    // Önceki sonuçları temizle
+    document.getElementById('loss-plot').style.display = 'none';
+    document.getElementById('loss-plot').src = '';
+    document.getElementById('prediction-plot').style.display = 'none';
+    document.getElementById('prediction-plot').src = '';
+    document.getElementById('download-buttons').style.display = 'none';
+
     try {
         const fd = new FormData();
         fd.append('data', file);
@@ -581,13 +590,18 @@ document.getElementById('train-btn').addEventListener('click', async () => {
                     document.getElementById('mape-value').textContent = data.mape.toFixed(2);
                     document.getElementById('epoch-value').textContent = data.epoch_count;
 
-                    const lossPlot = document.getElementById('loss-plot');
-                    lossPlot.src = data.loss_plot_url;
-                    lossPlot.style.display = 'block';
+                    // Grafikler — data:image/png;base64,... URL'i direkt set et, ?t= EKLEME
+                    if (data.loss_plot_url) {
+                        const lossPlot = document.getElementById('loss-plot');
+                        lossPlot.src = data.loss_plot_url;
+                        lossPlot.style.display = 'block';
+                    }
 
-                    const predPlot = document.getElementById('prediction-plot');
-                    predPlot.src = data.prediction_plot_url;
-                    predPlot.style.display = 'block';
+                    if (data.prediction_plot_url) {
+                        const predPlot = document.getElementById('prediction-plot');
+                        predPlot.src = data.prediction_plot_url;
+                        predPlot.style.display = 'block';
+                    }
 
                     document.getElementById('download-buttons').style.display = 'flex';
                     if (data.model_download) document.getElementById('model-download').href = data.model_download;
