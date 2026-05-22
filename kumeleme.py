@@ -1,19 +1,17 @@
+import matplotlib
+matplotlib.use("Agg")  # DÜZELTME: Sunucu ortamında GUI gerektirmeyen backend — görseller artık düzgün kaydedilir
+
 import os
 import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-matplotlib.use("Agg")
-
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.decomposition import PCA
-
 from tensorflow.keras.models import load_model
-
 from veri_on_isleme import veri_on_islem
-
 
 # =====================================================
 # 1. GELECEK GÜN TAHMİNİ
@@ -28,23 +26,18 @@ def gelecek_gun_tahmini_yap(
     # =================================================
     # SALES
     # =================================================
-
     values = store_df["sales"].values.astype(float)
 
     # =================================================
     # YETERLİ VERİ KONTROLÜ
     # =================================================
-
     if len(values) < window_size:
-
         return 0.0
 
     # =================================================
     # NORMALİZASYON
     # =================================================
-
     local_scaler = MinMaxScaler()
-
     values_scaled = local_scaler.fit_transform(
         values.reshape(-1, 1)
     )
@@ -52,7 +45,6 @@ def gelecek_gun_tahmini_yap(
     # =================================================
     # MODEL INPUT
     # =================================================
-
     input_seq = values_scaled[-window_size:].reshape(
         1,
         window_size,
@@ -62,7 +54,6 @@ def gelecek_gun_tahmini_yap(
     # =================================================
     # MODEL TAHMİNİ
     # =================================================
-
     pred_scaled = model.predict(
         input_seq,
         verbose=0
@@ -71,7 +62,6 @@ def gelecek_gun_tahmini_yap(
     # =================================================
     # SCALE GERİ ÇEVİR
     # =================================================
-
     pred_real = local_scaler.inverse_transform(
         np.array([[pred_scaled]])
     )[0][0]
@@ -79,15 +69,12 @@ def gelecek_gun_tahmini_yap(
     # =================================================
     # NAN / INF
     # =================================================
-
     if not np.isfinite(pred_real):
-
         pred_real = 0.0
 
     # =================================================
     # NEGATİF ENGELİ
     # =================================================
-
     pred_real = max(
         0.0,
         float(pred_real)
@@ -111,93 +98,67 @@ def musteri_profili_olustur(
     # =================================================
     # HER STORE
     # =================================================
-
     for store_id in df_clean["store"].unique():
 
         store_df = (
-
             df_clean[
                 df_clean["store"] == store_id
             ]
-
             .sort_values("date")
-
             .copy()
         )
 
         # =================================================
         # TARİHLER
         # =================================================
-
         ilk_tarih = store_df["date"].min()
-
-        son_tarih = store_df["date"].max()
+        son_tarih  = store_df["date"].max()
 
         # =================================================
         # SADAKAT
         # =================================================
-
         sadakat_suresi_ay = max(
-
             1,
-
-            (son_tarih.year - ilk_tarih.year) * 12
-
-            +
-
-            (son_tarih.month - ilk_tarih.month)
-
+            (son_tarih.year  - ilk_tarih.year)  * 12
+            + (son_tarih.month - ilk_tarih.month)
             + 1
         )
 
         # =================================================
         # TOPLAM CİRO
         # =================================================
-
         toplam_ciro = (
-
             store_df["sales"].sum()
         )
 
         # =================================================
         # AYLIK ORTALAMA CİRO
         # =================================================
-
         aylik_ortalama_ciro = (
-
             toplam_ciro / sadakat_suresi_ay
         )
 
         # =================================================
         # SİPARİŞ GÜNÜ
         # =================================================
-
         siparis_gunu = (
-
             store_df["sales"] > 0
         ).sum()
 
         # =================================================
         # AYLIK SİPARİŞ SIKLIĞI
         # =================================================
-
         aylik_ortalama_siparis_sikligi = (
-
             siparis_gunu / sadakat_suresi_ay
         )
 
         # =================================================
         # LSTM TAHMİNİ
         # =================================================
-
         gelecek_gun_tahmini_talep = (
-
             gelecek_gun_tahmini_yap(
-
                 model=model,
-
                 store_df=store_df,
-
                 window_size=window_size
             )
         )
@@ -205,13 +166,13 @@ def musteri_profili_olustur(
         # =================================================
         # PROFİL
         # =================================================
-
         def _safe(v):
             try:
                 f = float(v)
                 return 0.0 if (np.isnan(f) or np.isinf(f)) else f
             except:
                 return 0.0
+
         try:
             store_id_int = int(store_id) if pd.notna(store_id) else 0
         except:
@@ -233,7 +194,6 @@ def musteri_profili_olustur(
     # =================================================
     # DATAFRAME
     # =================================================
-
     profil_df = pd.DataFrame(
         profil_listesi
     )
@@ -256,7 +216,6 @@ def kumeleme_yap(
         output_dir,
         exist_ok=True
     )
-
     os.makedirs(
         plot_dir,
         exist_ok=True
@@ -265,22 +224,16 @@ def kumeleme_yap(
     # =================================================
     # FEATURELAR
     # =================================================
-
     feature_cols = [
-
         "Sadakat_Suresi_Ay",
-
         "Aylik_Ortalama_Ciro",
-
         "Aylik_Ortalama_Siparis_Sikligi",
-
         "Gelecek_Gun_Tahmini_Talep"
     ]
 
     # =================================================
     # X
     # =================================================
-
     X = profil_df[
         feature_cols
     ].copy()
@@ -288,9 +241,7 @@ def kumeleme_yap(
     # =================================================
     # NUMERIC
     # =================================================
-
     for col in feature_cols:
-
         X[col] = pd.to_numeric(
             X[col],
             errors="coerce"
@@ -299,42 +250,33 @@ def kumeleme_yap(
     # =================================================
     # NAN / INF
     # =================================================
-
     X = X.replace(
         [np.inf, -np.inf],
         np.nan
     )
-
     X = X.fillna(0)
 
     # =================================================
     # NEGATİF
     # =================================================
-
     for col in feature_cols:
-
         X[col] = X[col].clip(lower=0)
 
     # =================================================
     # NORMALİZASYON
     # =================================================
-
     profile_scaler = MinMaxScaler()
-
     X_scaled = profile_scaler.fit_transform(X)
 
     # =================================================
     # KMEANS
     # =================================================
-
     kmeans = KMeans(
         n_clusters=n_clusters,
         random_state=42,
         n_init=10
     )
-
     profil_df["Cluster"] = (
-
         kmeans.fit_predict(
             X_scaled
         )
@@ -343,56 +285,34 @@ def kumeleme_yap(
     # =================================================
     # SEGMENT SKORU
     # =================================================
-
     profil_df["Segment_Skoru"] = (
-
         profil_df["Aylik_Ortalama_Ciro"] * 0.40
-
-        +
-
-        profil_df["Aylik_Ortalama_Siparis_Sikligi"] * 0.30
-
-        +
-
-        profil_df["Gelecek_Gun_Tahmini_Talep"] * 0.30
+        + profil_df["Aylik_Ortalama_Siparis_Sikligi"] * 0.30
+        + profil_df["Gelecek_Gun_Tahmini_Talep"] * 0.30
     )
 
     # =================================================
     # CLUSTER ÖZET
     # =================================================
-
     cluster_ozet = (
-
         profil_df
-
         .groupby("Cluster")
-
         .agg({
-
             "Store": "count",
-
             "Sadakat_Suresi_Ay": "mean",
-
             "Aylik_Ortalama_Ciro": "mean",
-
             "Aylik_Ortalama_Siparis_Sikligi": "mean",
-
             "Gelecek_Gun_Tahmini_Talep": "mean",
-
             "Segment_Skoru": "mean"
         })
-
         .reset_index()
     )
 
     # =================================================
     # RENAME
     # =================================================
-
     cluster_ozet = cluster_ozet.rename(
-
         columns={
-
             "Store":
                 "Musteri_Sayisi"
         }
@@ -401,75 +321,53 @@ def kumeleme_yap(
     # =================================================
     # SCORE SIRALAMA
     # =================================================
-
     cluster_ozet = cluster_ozet.sort_values(
-
         "Segment_Skoru",
-
         ascending=False
-
     ).reset_index(drop=True)
 
     # =================================================
     # SEGMENT MAP
     # =================================================
-
     segment_map = {}
-
     for i, row in cluster_ozet.iterrows():
-
         if i == 0:
-
             segment_map[
                 row["Cluster"]
             ] = "Altin"
-
         elif i == 1:
-
             segment_map[
                 row["Cluster"]
             ] = "Gumus"
-
         else:
-
             segment_map[
                 row["Cluster"]
             ] = "Bronz"
 
     profil_df["Segment"] = (
-
         profil_df["Cluster"]
-
         .map(segment_map)
     )
 
     # =================================================
     # SILHOUETTE
     # =================================================
-
     try:
-
         sil_score = silhouette_score(
             X_scaled,
             profil_df["Cluster"]
         )
-
         if np.isnan(sil_score):
-
             sil_score = 0.0
-
     except:
-
         sil_score = 0.0
 
     # =================================================
     # PCA
     # =================================================
-
     pca = PCA(
         n_components=2
     )
-
     X_pca = pca.fit_transform(
         X_scaled
     )
@@ -477,59 +375,42 @@ def kumeleme_yap(
     # =================================================
     # GRAFİK
     # =================================================
-
     plot_path = os.path.join(
         plot_dir,
         "cluster_plot.png"
     )
 
-    plt.figure(figsize=(9, 6))
-
-    scatter = plt.scatter(
+    fig, ax = plt.subplots(figsize=(9, 6))
+    scatter = ax.scatter(
         X_pca[:, 0],
         X_pca[:, 1],
         c=profil_df["Cluster"],
         cmap="viridis"
     )
-
-    plt.title(
-        "KMeans Kümeleme Sonucu"
-    )
-
-    plt.xlabel("PCA 1")
-
-    plt.ylabel("PCA 2")
-
-    plt.colorbar(
-        scatter,
-        label="Cluster"
-    )
-
-    plt.grid(True)
-
-    plt.tight_layout()
-
-    plt.savefig(plot_path)
-
-    plt.close()
+    ax.set_title("KMeans Kümeleme Sonucu")
+    ax.set_xlabel("PCA 1")
+    ax.set_ylabel("PCA 2")
+    fig.colorbar(scatter, ax=ax, label="Cluster")
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(plot_path)
+    plt.close(fig)
 
     # =================================================
     # EXCEL
     # =================================================
-
     profil_df = profil_df.sort_values(
         "Store"
     )
 
     # NaN / Inf temizle — JSON serialize için
-    profil_df = profil_df.replace([np.inf, -np.inf], 0).fillna(0)
+    profil_df    = profil_df.replace([np.inf, -np.inf], 0).fillna(0)
     cluster_ozet = cluster_ozet.replace([np.inf, -np.inf], 0).fillna(0)
 
     profil_excel_path = os.path.join(
         output_dir,
         "musteri_kumeleme_sonuclari.xlsx"
     )
-
     ozet_excel_path = os.path.join(
         output_dir,
         "cluster_ozet.xlsx"
@@ -539,7 +420,6 @@ def kumeleme_yap(
         profil_excel_path,
         index=False
     )
-
     cluster_ozet.to_excel(
         ozet_excel_path,
         index=False
@@ -548,7 +428,6 @@ def kumeleme_yap(
     # =================================================
     # MODEL SAVE
     # =================================================
-
     joblib.dump(
         kmeans,
         os.path.join(
@@ -556,7 +435,6 @@ def kumeleme_yap(
             "kmeans_model.pkl"
         )
     )
-
     joblib.dump(
         profile_scaler,
         os.path.join(
@@ -591,13 +469,9 @@ def silhouette_grafigi_ciz(
     )
 
     feature_cols = [
-
         "Sadakat_Suresi_Ay",
-
         "Aylik_Ortalama_Ciro",
-
         "Aylik_Ortalama_Siparis_Sikligi",
-
         "Gelecek_Gun_Tahmini_Talep"
     ]
 
@@ -606,7 +480,6 @@ def silhouette_grafigi_ciz(
     ].copy()
 
     for col in feature_cols:
-
         X[col] = pd.to_numeric(
             X[col],
             errors="coerce"
@@ -616,100 +489,61 @@ def silhouette_grafigi_ciz(
         [np.inf, -np.inf],
         np.nan
     )
-
     X = X.fillna(0)
 
     scaler = MinMaxScaler()
-
     X_scaled = scaler.fit_transform(X)
 
     scores = []
-
     max_possible_k = min(
         max_k,
         len(X_scaled) - 1
     )
-
     k_values = range(
         2,
         max_possible_k + 1
     )
 
     for k in k_values:
-
         km = KMeans(
             n_clusters=k,
             random_state=42,
             n_init=10
         )
-
         labels = km.fit_predict(
             X_scaled
         )
-
         try:
-
             score = silhouette_score(
                 X_scaled,
                 labels
             )
-
         except:
-
             score = 0
-
         scores.append(score)
 
     best_index = np.argmax(scores)
-
-    best_k = list(k_values)[
-        best_index
-    ]
-
-    best_score = scores[
-        best_index
-    ]
+    best_k     = list(k_values)[best_index]
+    best_score = scores[best_index]
 
     # =================================================
     # GRAFİK
     # =================================================
-
     plot_path = os.path.join(
         plot_dir,
         "silhouette_plot.png"
     )
 
-    plt.figure(figsize=(8, 5))
-
-    plt.plot(
-        list(k_values),
-        scores,
-        marker="o"
-    )
-
-    plt.title(
-        "Silhouette Skoruna Göre Optimal Küme Sayısı"
-    )
-
-    plt.xlabel(
-        "Küme Sayısı (k)"
-    )
-
-    plt.ylabel(
-        "Silhouette Score"
-    )
-
-    plt.xticks(
-        list(k_values)
-    )
-
-    plt.grid(True)
-
-    plt.tight_layout()
-
-    plt.savefig(plot_path)
-
-    plt.close()
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(list(k_values), scores, marker="o")
+    ax.set_title("Silhouette Skoruna Göre Optimal Küme Sayısı")
+    ax.set_xlabel("Küme Sayısı (k)")
+    ax.set_ylabel("Silhouette Score")
+    ax.set_xticks(list(k_values))
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(plot_path)
+    plt.close(fig)
 
     return (
         plot_path,
@@ -736,19 +570,19 @@ def kumeleme_pipeline(
     # =================================================
     # MODEL
     # =================================================
-
     if not os.path.exists(model_path):
-
         raise FileNotFoundError(
             f"Model bulunamadı: {model_path}"
         )
 
-    model = load_model(model_path, compile=False, safe_mode=False)
+    model = load_model(
+        model_path,
+        compile=False
+    )
 
     # =================================================
     # VERİ ÖN İŞLEME
     # =================================================
-
     (
         X_train,
         X_test,
@@ -756,44 +590,31 @@ def kumeleme_pipeline(
         y_test,
         scaler,
         df_clean
-
     ) = veri_on_islem(
-
         data=data_path,
-
         window_size=window_size,
-
         test_ratio=test_ratio
     )
 
     # =================================================
     # PROFİL
     # =================================================
-    
     profil_df = musteri_profili_olustur(
-
         df_clean=df_clean,
-
         model=model,
-
         window_size=window_size
     )
 
     # =================================================
     # SILHOUETTE
     # =================================================
-
     (
         silhouette_plot_path,
         best_k,
         best_score
-
     ) = silhouette_grafigi_ciz(
-
         profil_df=profil_df,
-
         max_k=10,
-
         plot_dir=plot_dir
     )
 
@@ -802,7 +623,6 @@ def kumeleme_pipeline(
     # Kullanıcının seçtiği n_clusters ile çalıştır.
     # best_k sadece öneri olarak döner.
     # =================================================
-
     (
         profil_df,
         cluster_ozet,
@@ -810,33 +630,20 @@ def kumeleme_pipeline(
         profile_scaler,
         plot_path,
         sil_score
-
     ) = kumeleme_yap(
-
         profil_df=profil_df,
-
         n_clusters=n_clusters,
-
         output_dir=output_dir,
-
         plot_dir=plot_dir
     )
 
     return (
-
         profil_df,
-
         cluster_ozet,
-
         kmeans,
-
         profile_scaler,
-
         plot_path,
-
         silhouette_plot_path,
-
         sil_score,
-
         best_k
     )
