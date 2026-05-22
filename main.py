@@ -3,22 +3,20 @@ import threading
 import json
 from typing import Annotated, Any, Optional
 import os
+import io
 import uuid
 import shutil
 from pydantic import BaseModel
-
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel as PydanticBase
-
 import crud
 import models
 import database
 from database import get_db, init_db
 from auth import get_current_user, get_optional_user, create_access_token
-
 from sezgisel import VRPData, ALNSSetPartitioning
 from kumeleme import kumeleme_pipeline
 from lstm_model import lstm_model_egit
@@ -40,10 +38,10 @@ async def startup():
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-os.makedirs("outputs", exist_ok=True)
-os.makedirs("uploads", exist_ok=True)
+os.makedirs("outputs",      exist_ok=True)
+os.makedirs("uploads",      exist_ok=True)
 os.makedirs("static/plots", exist_ok=True)
-os.makedirs("static/maps", exist_ok=True)
+os.makedirs("static/maps",  exist_ok=True)
 
 
 class RotalamaSonuc(BaseModel):
@@ -75,8 +73,7 @@ async def lstm_tez_sonuc():
 @app.get("/rotalama", response_class=HTMLResponse)
 async def rotalama_page(request: Request, current_user: models.User = Depends(get_optional_user)):
     return templates.TemplateResponse(
-        request=request,
-        name="rotalama.html",
+        request=request, name="rotalama.html",
         context={"request": request, "current_user": current_user}
     )
 
@@ -84,8 +81,7 @@ async def rotalama_page(request: Request, current_user: models.User = Depends(ge
 @app.get("/hakkimizda", response_class=HTMLResponse, name="hakkimizda")
 async def hakkimizda_sayfasi(request: Request, current_user: models.User = Depends(get_optional_user)):
     return templates.TemplateResponse(
-        request=request,
-        name="hakkimizda.html",
+        request=request, name="hakkimizda.html",
         context={"request": request, "current_user": current_user}
     )
 
@@ -93,8 +89,7 @@ async def hakkimizda_sayfasi(request: Request, current_user: models.User = Depen
 @app.get("/lstm-egitimi", response_class=HTMLResponse, name="lstm_egitimi")
 async def lstm_egitimi_sayfasi(request: Request, current_user: models.User = Depends(get_optional_user)):
     return templates.TemplateResponse(
-        request=request,
-        name="lstm_egitimi.html",
+        request=request, name="lstm_egitimi.html",
         context={"request": request, "current_user": current_user}
     )
 
@@ -102,8 +97,7 @@ async def lstm_egitimi_sayfasi(request: Request, current_user: models.User = Dep
 @app.get("/musteri-segmentasyonu", response_class=HTMLResponse, name="musteri_segmentasyonu")
 async def musteri_segmentasyonu_sayfasi(request: Request, current_user: models.User = Depends(get_optional_user)):
     return templates.TemplateResponse(
-        request=request,
-        name="musteri_segmentasyonu.html",
+        request=request, name="musteri_segmentasyonu.html",
         context={"request": request, "current_user": current_user}
     )
 
@@ -111,7 +105,6 @@ async def musteri_segmentasyonu_sayfasi(request: Request, current_user: models.U
 # =========================================================
 # TEZ VERİLERİ İLE HAZIR ROTALAMA SONUCU
 # =========================================================
-
 @app.api_route("/rotalama/tez", methods=["GET", "POST"])
 async def rotalama_tez(current_user: models.User = Depends(get_optional_user)):
     try:
@@ -127,10 +120,10 @@ async def rotalama_tez(current_user: models.User = Depends(get_optional_user)):
         total_cost = 0
 
         for _, row in df.iterrows():
-            route_str = str(row["route"])
+            route_str  = str(row["route"])
             route_list = [x.strip() for x in route_str.split("->")]
-
             koordinatlar = ast.literal_eval(str(row["coordinates"]))
+
             coordinates = []
             for idx, coord in enumerate(koordinatlar):
                 node_id = route_list[idx] if idx < len(route_list) else "0"
@@ -140,23 +133,22 @@ async def rotalama_tez(current_user: models.User = Depends(get_optional_user)):
                     "lng": float(coord[1])
                 })
 
-            route_cost = float(str(row["total_cost"]).replace(",", "."))
+            route_cost    = float(str(row["total_cost"]).replace(",", "."))
             distance_cost = float(str(row["distance_cost"]).replace(",", "."))
-            late_cost = float(str(row["late_cost"]).replace(",", "."))
-            total_cost += route_cost
+            late_cost     = float(str(row["late_cost"]).replace(",", "."))
+            total_cost   += route_cost
 
             routes.append({
-                "service": str(row["service"]),
-                "vehicle": str(row["vehicle"]),
-                "route": route_list,
-                "coordinates": coordinates,
+                "service":       str(row["service"]),
+                "vehicle":       str(row["vehicle"]),
+                "route":         route_list,
+                "coordinates":   coordinates,
                 "distance_cost": distance_cost,
-                "late_cost": late_cost,
-                "total_cost": route_cost
+                "late_cost":     late_cost,
+                "total_cost":    route_cost
             })
 
         return {"total_cost": total_cost, "routes": routes, "download_excel": "/download-rotalama"}
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Tez rotalama sonucu okunamadı: {str(e)}")
 
@@ -164,7 +156,6 @@ async def rotalama_tez(current_user: models.User = Depends(get_optional_user)):
 # =========================================================
 # KENDİ VERİLERİM İLE ROTALAMA
 # =========================================================
-
 @app.post("/rotalama/", response_model=RotalamaSonuc, summary="Araç Rotalarını Optimize Et")
 async def rotalama_motoru(
     data: Annotated[UploadFile, File()],
@@ -173,26 +164,24 @@ async def rotalama_motoru(
 ):
     if not data.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Lütfen sadece .xlsx veya .xls dosyası yükleyin.")
-
     try:
-        file_id = str(uuid.uuid4())
+        file_id   = str(uuid.uuid4())
         veri_path = os.path.join("uploads", f"{file_id}_{data.filename}")
         with open(veri_path, "wb") as buffer:
             shutil.copyfileobj(data.file, buffer)
 
         segment_path = "static/veriler/musteri_kumeleme_sonuclari.xlsx"
-        data_obj = VRPData(filepath=veri_path, segment_filepath=segment_path)
-        solver = ALNSSetPartitioning(data=data_obj, seed=42)
-        sonuc = solver.solve(iterations=iterations)
+        data_obj     = VRPData(filepath=veri_path, segment_filepath=segment_path)
+        solver       = ALNSSetPartitioning(data=data_obj, seed=42)
+        sonuc        = solver.solve(iterations=iterations)
 
         return {
-            "dosya_adi": data.filename,
-            "iterasyon": iterations,
-            "rota": sonuc["routes"],
-            "maliyet": float(sonuc["total_cost"]),
+            "dosya_adi":      data.filename,
+            "iterasyon":      iterations,
+            "rota":           sonuc["routes"],
+            "maliyet":        float(sonuc["total_cost"]),
             "download_excel": "/download/matheuristic_sonuc.xlsx"
         }
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Rotalama sırasında hata oluştu: {str(e)}")
 
@@ -207,9 +196,8 @@ async def rotalama_kendi_verilerim(
 ):
     if not veri_dosyasi.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Rotalama veri dosyası Excel olmalıdır.")
-
     try:
-        file_id = str(uuid.uuid4())
+        file_id   = str(uuid.uuid4())
         veri_path = os.path.join("uploads", f"{file_id}_{veri_dosyasi.filename}")
         with open(veri_path, "wb") as buffer:
             shutil.copyfileobj(veri_dosyasi.file, buffer)
@@ -230,8 +218,8 @@ async def rotalama_kendi_verilerim(
                 shutil.copyfileobj(kume_dosyasi.file, buffer)
 
         data_obj = VRPData(filepath=veri_path, segment_filepath=segment_path)
-        solver = ALNSSetPartitioning(data=data_obj, seed=42)
-        sonuc = solver.solve(iterations=iterations)
+        solver   = ALNSSetPartitioning(data=data_obj, seed=42)
+        sonuc    = solver.solve(iterations=iterations)
 
         try:
             crud.create_routing_result(
@@ -244,33 +232,31 @@ async def rotalama_kendi_verilerim(
             print("DB ROTALAMA HATASI:", db_error)
 
         return {
-            "message": "Rotalama başarıyla tamamlandı.",
-            "dosya_adi": veri_dosyasi.filename,
-            "iterasyon": iterations,
-            "rota": sonuc["routes"],
-            "maliyet": float(sonuc["total_cost"]),
+            "message":        "Rotalama başarıyla tamamlandı.",
+            "dosya_adi":      veri_dosyasi.filename,
+            "iterasyon":      iterations,
+            "rota":           sonuc["routes"],
+            "maliyet":        float(sonuc["total_cost"]),
             "download_excel": "/download/matheuristic_sonuc.xlsx"
         }
-
     except Exception as e:
         print("GENEL HATA:", e)
         raise HTTPException(status_code=500, detail=f"Kendi verileriniz ile rotalama sırasında hata oluştu: {str(e)}")
 
 
 # =========================================================
-# SEGMENTASYON
+# SEGMENTASYON — TEZ VERİSİ
 # =========================================================
-
 @app.post("/segmentasyon/tez-verisi")
 async def tez_verisi_segmentasyon():
     try:
         import pandas as pd
-        profil_df = pd.read_excel("outputs/musteri_kumeleme_sonuclari.xlsx")
+        profil_df   = pd.read_excel("outputs/musteri_kumeleme_sonuclari.xlsx")
         cluster_ozet = pd.read_excel("outputs/cluster_ozet.xlsx")
         return {
             "success": True,
             "customers": profil_df.to_dict(orient="records"),
-            "cluster_summary":json.loads(cluster_ozet.replace([float('inf'), float('-inf')], 0).fillna(0).to_json(orient="records", force_ascii=False)),
+            "cluster_summary": cluster_ozet.to_dict(orient="records"),
             "plot_url": "/static/kumeleme_sonuclari/cluster_plot.png",
             "silhouette_plot_url": "/static/kumeleme_sonuclari/silhouette_plot.png",
             "silhouette_score": 0.61,
@@ -282,6 +268,9 @@ async def tez_verisi_segmentasyon():
         raise HTTPException(status_code=500, detail=f"Tez segmentasyon verisi okunamadı: {str(e)}")
 
 
+# =========================================================
+# SEGMENTASYON — KENDİ VERİM
+# =========================================================
 @app.post("/segmentasyon/kendi-verim")
 async def kendi_verim_ile_segmentasyon(
     data: Annotated[UploadFile, File()],
@@ -296,12 +285,12 @@ async def kendi_verim_ile_segmentasyon(
         if not data.filename.endswith((".csv", ".xlsx", ".xls")):
             raise HTTPException(status_code=400, detail="Lütfen CSV veya Excel dosyası yükleyin.")
 
-        file_id = str(uuid.uuid4())
+        file_id     = str(uuid.uuid4())
         upload_path = os.path.join("uploads", f"{file_id}_{data.filename}")
         with open(upload_path, "wb") as buffer:
             shutil.copyfileobj(data.file, buffer)
 
-        model_path = "lstm_talep_model.h5"
+        model_path  = "lstm_talep_model.h5"
         scaler_path = "scaler.pkl"
 
         if model_file is not None and model_file.filename:
@@ -314,73 +303,82 @@ async def kendi_verim_ile_segmentasyon(
             with open(scaler_path, "wb") as buffer:
                 shutil.copyfileobj(scaler_file.file, buffer)
 
-        (profil_df, cluster_ozet, kmeans, profile_scaler,
-         plot_path, silhouette_plot_path, sil_score, best_k) = kumeleme_pipeline(
-            data_path=upload_path, model_path=model_path, scaler_path=scaler_path,
-            window_size=window_size, test_ratio=0.10, n_clusters=n_clusters,
-            output_dir="outputs", plot_dir="static/plots"
+        # ── Pipeline ──────────────────────────────────────────
+        # kumeleme_pipeline artık 9 değer döndürüyor (son değer excel_data)
+        (
+            profil_df,
+            cluster_ozet,
+            kmeans,
+            profile_scaler,
+            cluster_plot_b64,       # base64 string — doğrudan kullan
+            silhouette_plot_b64,    # base64 string — doğrudan kullan
+            sil_score,
+            best_k,
+            excel_data,             # bytes
+        ) = kumeleme_pipeline(
+            data_path=upload_path,
+            model_path=model_path,
+            scaler_path=scaler_path,
+            window_size=window_size,
+            test_ratio=0.10,
+            n_clusters=n_clusters,
+            output_dir="outputs",
         )
 
-        cluster_plot_b64 = None
-        silhouette_plot_b64 = None
-
+        # ── DB Kayıt ──────────────────────────────────────────
         try:
-            import base64 as _b64
-            import io as _io
-
             db_file = crud.create_uploaded_file(
                 db=db, filename=data.filename, saved_path=upload_path,
                 file_type="segmentasyon", file_size=os.path.getsize(upload_path),
                 user_id=current_user.id if current_user else None
             )
 
-            def _path_to_b64(path):
-                try:
-                    with open(path, "rb") as f:
-                        return _b64.b64encode(f.read()).decode("utf-8")
-                except Exception:
-                    return None
-
-            cluster_plot_b64 = _path_to_b64(plot_path)
-            silhouette_plot_b64 = _path_to_b64(silhouette_plot_path)
-
-            excel_buf = _io.BytesIO()
-            profil_df.sort_values("Store").to_excel(excel_buf, index=False)
-            excel_data = excel_buf.getvalue()
-
             crud.create_segmentation_result(
-                db=db, n_clusters=n_clusters, best_k=int(best_k),
-                silhouette_score=float(sil_score), window_size=window_size,
-                cluster_plot_b64=cluster_plot_b64, silhouette_plot_b64=silhouette_plot_b64,
-                excel_data=excel_data, cluster_plot_path=None, silhouette_plot_path=None,
+                db=db,
+                n_clusters=n_clusters,
+                best_k=int(best_k),
+                silhouette_score=float(sil_score),
+                window_size=window_size,
+                cluster_plot_b64=cluster_plot_b64,
+                silhouette_plot_b64=silhouette_plot_b64,
+                excel_data=excel_data,                  # doğrudan binary
+                cluster_plot_path=None,
+                silhouette_plot_path=None,
                 excel_output_path=None,
-                cluster_summary_json=json.dumps(cluster_ozet.head(20).to_dict(orient="records"), ensure_ascii=False),
+                cluster_summary_json=json.dumps(
+                    cluster_ozet.head(20).to_dict(orient="records"),
+                    ensure_ascii=False
+                ),
                 user_id=current_user.id if current_user else None,
                 uploaded_file_id=db_file.id if db_file else None
             )
         except Exception as db_err:
+            # Kayıt hatası — kullanıcıya sonuçları yine de göster, sadece logla
             print("DB SEG KAYIT HATASI:", db_err)
 
+        # ── Response ──────────────────────────────────────────
         return {
-            "message": "Yüklenen veri ile kümeleme tamamlandı.",
-            "silhouette_score": float(sil_score),
-            "best_k": int(best_k),
-            "plot_url": "data:image/png;base64," + (cluster_plot_b64 or ""),
-            "silhouette_plot_url": "data:image/png;base64," + (silhouette_plot_b64 or ""),
-            "excel_1": None,
-            "excel_2": None,
-            "customers": profil_df.head(100).to_dict(orient="records"),
-            "cluster_summary":json.loads(cluster_ozet.head(20).replace([float('inf'), float('-inf')], 0).fillna(0).to_json(orient="records", force_ascii=False))
+            "message":              "Yüklenen veri ile kümeleme tamamlandı.",
+            "silhouette_score":     float(sil_score),
+            "best_k":               int(best_k),
+            "plot_url":             "data:image/png;base64," + cluster_plot_b64,
+            "silhouette_plot_url":  "data:image/png;base64," + silhouette_plot_b64,
+            "excel_1":              None,
+            "excel_2":              None,
+            "customers":            profil_df.head(100).to_dict(orient="records"),
+            "cluster_summary":      cluster_ozet.head(20).to_dict(orient="records"),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Yüklenen veri ile kümeleme sırasında hata oluştu: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Yüklenen veri ile kümeleme sırasında hata oluştu: {str(e)}"
+        )
 
 
 # =========================================================
 # LSTM — BACKGROUND TASK
 # =========================================================
-
 @app.post("/segmentasyon/lstm-egit")
 async def lstm_egit_endpoint(
     data: Annotated[UploadFile, File()],
@@ -392,7 +390,7 @@ async def lstm_egit_endpoint(
     if not data.filename.endswith((".csv", ".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Lütfen CSV veya Excel dosyası yükleyin.")
 
-    file_id = str(uuid.uuid4())
+    file_id     = str(uuid.uuid4())
     upload_path = os.path.join("uploads", f"{file_id}_{data.filename}")
     with open(upload_path, "wb") as buffer:
         shutil.copyfileobj(data.file, buffer)
@@ -410,6 +408,7 @@ async def lstm_egit_endpoint(
                 output_dir="outputs",
                 plot_dir="static/plots"
             )
+
             try:
                 db_file = crud.create_uploaded_file(
                     db=db, filename=data.filename, saved_path=upload_path,
@@ -435,24 +434,23 @@ async def lstm_egit_endpoint(
 
             _lstm_tasks[task_id]["durum"] = "tamamlandi"
             _lstm_tasks[task_id]["sonuc"] = {
-                "mae": sonuc["mae"],
-                "rmse": sonuc["rmse"],
-                "mape": sonuc["mape"],
-                "epoch_count": sonuc["epoch_count"],
-                "final_loss": sonuc["final_loss"],
-                "final_val_loss": sonuc["final_val_loss"],
-                "loss_plot_url": "data:image/png;base64," + sonuc.get("loss_plot_b64", ""),
-                "prediction_plot_url": "data:image/png;base64," + sonuc.get("prediction_plot_b64", ""),
-                "model_download": None,
-                "scaler_download": None
+                "mae":                  sonuc["mae"],
+                "rmse":                 sonuc["rmse"],
+                "mape":                 sonuc["mape"],
+                "epoch_count":          sonuc["epoch_count"],
+                "final_loss":           sonuc["final_loss"],
+                "final_val_loss":       sonuc["final_val_loss"],
+                "loss_plot_url":        "data:image/png;base64," + sonuc.get("loss_plot_b64", ""),
+                "prediction_plot_url":  "data:image/png;base64," + sonuc.get("prediction_plot_b64", ""),
+                "model_download":       None,
+                "scaler_download":      None,
             }
         except Exception as e:
             _lstm_tasks[task_id]["durum"] = "hata"
-            _lstm_tasks[task_id]["hata"] = str(e)
+            _lstm_tasks[task_id]["hata"]  = str(e)
 
     t = threading.Thread(target=_egit, daemon=True)
     t.start()
-
     return {"task_id": task_id}
 
 
@@ -473,7 +471,6 @@ async def lstm_temizle(task_id: str, current_user=Depends(get_current_user)):
 # =========================================================
 # DOSYA İNDİRME
 # =========================================================
-
 @app.get("/download/{filename}")
 async def download_file(filename: str):
     file_path = os.path.join("outputs", filename)
@@ -493,7 +490,6 @@ async def download_rotalama():
 # =========================================================
 # AUTH
 # =========================================================
-
 class UserCreate(PydanticBase):
     username: str
     email: str
@@ -504,7 +500,6 @@ class UserOut(PydanticBase):
     id: int
     username: str
     email: str
-
     class Config:
         from_attributes = True
 
@@ -564,7 +559,7 @@ async def register(
         with open(profile_path, "wb") as buffer:
             shutil.copyfileobj(profile_image.file, buffer)
 
-    user = crud.create_user(
+    user  = crud.create_user(
         db=db, first_name=first_name, last_name=last_name,
         username=username, email=email, password=password,
         profile_image=profile_path
@@ -576,7 +571,6 @@ async def register(
 # =========================================================
 # GEÇMİŞ
 # =========================================================
-
 @app.get("/gecmis/dosyalar")
 async def gecmis_dosyalar(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     dosyalar = crud.get_uploaded_files(db, user_id=current_user.id)
@@ -594,17 +588,17 @@ async def gecmis_lstm(db: Session = Depends(get_db), current_user=Depends(get_cu
     sonuclar = crud.get_lstm_results(db, user_id=current_user.id)
     return [
         {
-            "id": s.id,
-            "mae": s.mae,
-            "rmse": s.rmse,
-            "mape": s.mape,
-            "epochs": s.epochs,
-            "window_size": s.window_size,
-            "tarih": s.created_at,
-            "model_path": s.model_path,
-            "scaler_path": s.scaler_path,
-            "model_download": f"/download-model/{s.id}/model",
-            "scaler_download": f"/download-model/{s.id}/scaler",
+            "id":             s.id,
+            "mae":            s.mae,
+            "rmse":           s.rmse,
+            "mape":           s.mape,
+            "epochs":         s.epochs,
+            "window_size":    s.window_size,
+            "tarih":          s.created_at,
+            "model_path":     s.model_path,
+            "scaler_path":    s.scaler_path,
+            "model_download":  f"/download-model/{s.id}/model"  if s.model_data  else None,
+            "scaler_download": f"/download-model/{s.id}/scaler" if s.scaler_data else None,
         }
         for s in sonuclar
     ]
@@ -647,13 +641,13 @@ async def gecmis_segmentasyon(db: Session = Depends(get_db), current_user=Depend
     sonuclar = crud.get_segmentation_results(db, user_id=current_user.id)
     return [
         {
-            "id": s.id,
+            "id":               s.id,
             "silhouette_skoru": s.silhouette_score,
-            "en_iyi_k": s.best_k,
-            "n_clusters": s.n_clusters,
-            "window_size": s.window_size,
-            "tarih": s.created_at,
-            "excel_download": f"/download-segment/{s.id}/excel",
+            "en_iyi_k":         s.best_k,
+            "n_clusters":       s.n_clusters,
+            "window_size":      s.window_size,
+            "tarih":            s.created_at,
+            "excel_download":   f"/download-segment/{s.id}/excel",
         }
         for s in sonuclar
     ]
