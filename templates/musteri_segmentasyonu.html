@@ -1,16 +1,11 @@
-{% from "macros.html" import navbar %}
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Müşteri Segmentasyonu — Tez Platformu</title>
-<link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-<div class="stars-bg"></div>
-<div id="toast-container"></div>
-{{ navbar('segmentasyon') }}
+{% extends "layout.html" %}
+
+{% block extra_head %}
+{% endblock %}
+
+{% block content %}
+
+<style></style>
 
 <div class="page-wrap">
   <div class="page-header">
@@ -500,5 +495,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 </script>
-</body>
-</html>
+
+{% endblock %}
