@@ -270,7 +270,7 @@ async def tez_verisi_segmentasyon():
         return {
             "success": True,
             "customers": profil_df.to_dict(orient="records"),
-            "cluster_summary": cluster_ozet.to_dict(orient="records"),
+            "cluster_summary":json.loads(cluster_ozet.replace([float('inf'), float('-inf')], 0).fillna(0).to_json(orient="records", force_ascii=False)),
             "plot_url": "/static/kumeleme_sonuclari/cluster_plot.png",
             "silhouette_plot_url": "/static/kumeleme_sonuclari/silhouette_plot.png",
             "silhouette_score": 0.61,
@@ -370,7 +370,7 @@ async def kendi_verim_ile_segmentasyon(
             "excel_1": None,
             "excel_2": None,
             "customers": profil_df.head(100).to_dict(orient="records"),
-            "cluster_summary": cluster_ozet.head(20).to_dict(orient="records")
+            "cluster_summary":json.loads(cluster_ozet.head(20).replace([float('inf'), float('-inf')], 0).fillna(0).to_json(orient="records", force_ascii=False))
         }
 
     except Exception as e:
