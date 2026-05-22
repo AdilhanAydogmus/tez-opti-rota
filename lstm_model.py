@@ -96,7 +96,7 @@ def lstm_model_egit(data, window_size=30, epochs=50, test_ratio=0.10,
     prediction_plot_b64 = _fig_to_b64(fig2)
 
     # ── Model → binary (tempfile ile, BytesIO desteklenmiyor) ──
-    tmp_model = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
+    tmp_model = tempfile.NamedTemporaryFile(suffix=".keras", delete=False)
     tmp_model.close()
     try:
         model.save(tmp_model.name)
