@@ -1,6 +1,7 @@
 import os
 import io
 import base64
+import tempfile
 import joblib
 import numpy as np
 import matplotlib
@@ -15,7 +16,6 @@ from veri_on_isleme import veri_on_islem
 
 
 def _fig_to_b64(fig) -> str:
-    """Matplotlib figure'ı base64 PNG string'e çevirir."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     buf.seek(0)
@@ -26,10 +26,6 @@ def _fig_to_b64(fig) -> str:
 
 def lstm_model_egit(data, window_size=30, epochs=50, test_ratio=0.10,
                     output_dir="outputs", plot_dir="static/plots"):
-    """
-    Modeli eğitir. Grafikler ve model binary olarak döner (dosyaya yazmaz).
-    output_dir ve plot_dir parametreleri artık kullanılmaz, geriye dönük uyumluluk için tutuldu.
-    """
 
     X_train, X_test, y_train, y_test, scaler, df_clean = veri_on_islem(
         data, window_size=window_size, test_ratio=test_ratio
@@ -99,14 +95,15 @@ def lstm_model_egit(data, window_size=30, epochs=50, test_ratio=0.10,
     fig2.tight_layout()
     prediction_plot_b64 = _fig_to_b64(fig2)
 
-    # ── Model → binary ──
-    import tempfile
-    _tmp = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
-    _tmp.close()
-    model.save(_tmp.name)
-    with open(_tmp.name, "rb") as f:
-        model_data = f.read()
-    os.remove(_tmp.name)
+    # ── Model → binary (tempfile ile, BytesIO desteklenmiyor) ──
+    tmp_model = tempfile.NamedTemporaryFile(suffix=".h5", delete=False)
+    tmp_model.close()
+    try:
+        model.save(tmp_model.name)
+        with open(tmp_model.name, "rb") as f:
+            model_data = f.read()
+    finally:
+        os.remove(tmp_model.name)
 
     # ── Scaler → binary ──
     scaler_buf = io.BytesIO()
@@ -124,7 +121,6 @@ def lstm_model_egit(data, window_size=30, epochs=50, test_ratio=0.10,
         "prediction_plot_b64": prediction_plot_b64,
         "model_data": model_data,
         "scaler_data": scaler_data,
-        # Geriye dönük uyumluluk
         "loss_plot": "db",
         "prediction_plot": "db",
         "model_path": None,
