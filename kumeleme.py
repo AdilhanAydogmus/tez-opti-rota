@@ -768,9 +768,7 @@ def kumeleme_pipeline(
     # =================================================
     # PROFİL
     # =================================================
-    store_df = store_df.dropna(subset=["date", "sales"])
-    if store_df.empty:
-        continue
+    
     profil_df = musteri_profili_olustur(
 
         df_clean=df_clean,
