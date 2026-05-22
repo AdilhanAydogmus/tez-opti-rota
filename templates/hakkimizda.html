@@ -1,11 +1,7 @@
-{% from "macros.html" import navbar %}
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hakkımızda — Tez Platformu</title>
-<link rel="stylesheet" href="/static/style.css">
+{% extends "layout.html" %}
+
+{% block content %}
+
 <style>
 /* ── Ekip kartları ───────────────────────────────── */
 .team-grid {
@@ -111,10 +107,6 @@
 .tech-name  { font-size: 0.82rem; font-weight: 700; color: var(--purple3); }
 .tech-desc  { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
 </style>
-</head>
-<body>
-<div class="stars-bg"></div>
-{{ navbar('hakkimizda') }}
 
 <div class="page-wrap">
   <div class="page-header">
@@ -279,6 +271,4 @@
   </div>
 </div>
 
-<script src="/static/app.js"></script>
-</body>
-</html>
+{% endblock %}
