@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, Form, BackgroundTasks
+from starlette.middleware.base import BaseHTTPMiddleware
 import threading
 import json
 from typing import Annotated, Any, Optional
@@ -14,7 +15,7 @@ from pydantic import BaseModel as PydanticBase
 import crud
 import models
 import database
-from database import get_db, init_db, SessionLocal  # DÜZELTME: SessionLocal import edildi
+from database import get_db, init_db, SessionLocal
 from auth import get_current_user, get_optional_user, create_access_token
 from sezgisel import VRPData, ALNSSetPartitioning
 from kumeleme import kumeleme_pipeline
@@ -30,9 +31,25 @@ _lstm_tasks: dict = {}  # task_id -> durum dict
 
 app = FastAPI(title="ARAÇ ROTALAMA, LSTM VE MÜŞTERİ SEGMENTASYONU")
 
+# ── NO-CACHE MIDDLEWARE ───────────────────────
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        path_part = request.url.path.split('/')[-1]
+        if '.' not in path_part:  # HTML sayfaları (static dosyalar hariç)
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
+
 @app.on_event("startup")
 async def startup():
-    init_db()
+    try:
+        init_db()
+        print("DB başarıyla başlatıldı.")
+    except Exception as e:
+        print(f"DB başlatma hatası (devam ediliyor): {e}")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -318,13 +335,9 @@ async def kendi_verim_ile_segmentasyon(
             output_dir="outputs", plot_dir="static/plots"
         )
 
-        cluster_plot_b64    = None
-        silhouette_plot_b64 = None
-
         import base64 as _b64
         import io as _io
 
-        # DÜZELTME: Grafik dosyalarını base64'e çevir — hata varsa loglayıp devam et
         def _path_to_b64(path):
             try:
                 with open(path, "rb") as f:
@@ -340,7 +353,6 @@ async def kendi_verim_ile_segmentasyon(
         profil_df.sort_values("Store").to_excel(excel_buf, index=False)
         excel_data = excel_buf.getvalue()
 
-        # DÜZELTME: DB kaydını try/except ile yap, commit açık çağrılıyor
         try:
             db_file = crud.create_uploaded_file(
                 db=db, filename=data.filename, saved_path=upload_path,
@@ -399,8 +411,7 @@ async def lstm_egit_endpoint(
     task_id = str(uuid.uuid4())
     _lstm_tasks[task_id] = {"durum": "basliyor", "sonuc": None, "hata": None}
 
-    # Kullanıcı bilgilerini thread'e geçirmeden önce kopyala
-    user_id       = current_user.id if current_user else None
+    user_id           = current_user.id if current_user else None
     original_filename = data.filename
 
     def _egit():
@@ -415,7 +426,6 @@ async def lstm_egit_endpoint(
                 plot_dir="static/plots"
             )
 
-            # DÜZELTME: Thread içinde yeni bir DB session aç (SQLAlchemy thread-safe değil)
             db_thread = SessionLocal()
             try:
                 db_file = crud.create_uploaded_file(
@@ -462,8 +472,8 @@ async def lstm_egit_endpoint(
                 "epoch_count":    sonuc["epoch_count"],
                 "final_loss":     sonuc["final_loss"],
                 "final_val_loss": sonuc["final_val_loss"],
-                "loss_plot_url":        "data:image/png;base64," + sonuc.get("loss_plot_b64", ""),
-                "prediction_plot_url":  "data:image/png;base64," + sonuc.get("prediction_plot_b64", ""),
+                "loss_plot_url":       "data:image/png;base64," + sonuc.get("loss_plot_b64", ""),
+                "prediction_plot_url": "data:image/png;base64," + sonuc.get("prediction_plot_b64", ""),
                 "model_download":  None,
                 "scaler_download": None
             }
@@ -558,13 +568,13 @@ async def login_page(request: Request):
 
 @app.post("/register")
 async def register(
-    first_name:      str = Form(...),
-    last_name:       str = Form(...),
-    username:        str = Form(...),
-    email:           str = Form(...),
-    password:        str = Form(...),
+    first_name:       str = Form(...),
+    last_name:        str = Form(...),
+    username:         str = Form(...),
+    email:            str = Form(...),
+    password:         str = Form(...),
     password_confirm: str = Form(...),
-    profile_image:   UploadFile = File(None),
+    profile_image:    UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
     if password != password_confirm:
