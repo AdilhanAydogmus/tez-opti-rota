@@ -3,6 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+matplotlib.use("Agg")
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
