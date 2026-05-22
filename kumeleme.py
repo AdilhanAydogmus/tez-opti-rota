@@ -742,10 +742,7 @@ def kumeleme_pipeline(
             f"Model bulunamadı: {model_path}"
         )
 
-    model = load_model(
-        model_path,
-        compile=False
-    )
+    model = load_model(model_path, compile=False, safe_mode=False)
 
     # =================================================
     # VERİ ÖN İŞLEME
@@ -771,7 +768,9 @@ def kumeleme_pipeline(
     # =================================================
     # PROFİL
     # =================================================
-
+    store_df = store_df.dropna(subset=["date", "sales"])
+    if store_df.empty:
+        continue
     profil_df = musteri_profili_olustur(
 
         df_clean=df_clean,
