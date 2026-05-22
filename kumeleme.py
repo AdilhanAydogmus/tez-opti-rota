@@ -211,10 +211,14 @@ def musteri_profili_olustur(
                 return 0.0 if (np.isnan(f) or np.isinf(f)) else f
             except:
                 return 0.0
+        try:
+            store_id_int = int(store_id) if pd.notna(store_id) else 0
+        except:
+            store_id_int = 0
 
         profil_listesi.append({
             "Store":
-                int(store_id),
+                store_id_int,
             "Sadakat_Suresi_Ay":
                 _safe(sadakat_suresi_ay),
             "Aylik_Ortalama_Ciro":
