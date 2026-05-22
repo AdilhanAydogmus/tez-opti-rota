@@ -582,11 +582,11 @@ document.getElementById('train-btn').addEventListener('click', async () => {
                     document.getElementById('epoch-value').textContent = data.epoch_count;
 
                     const lossPlot = document.getElementById('loss-plot');
-                    lossPlot.src = data.loss_plot_url + '?t=' + Date.now();
+                    lossPlot.src = data.loss_plot_url;
                     lossPlot.style.display = 'block';
 
                     const predPlot = document.getElementById('prediction-plot');
-                    predPlot.src = data.prediction_plot_url + '?t=' + Date.now();
+                    predPlot.src = data.prediction_plot_url;
                     predPlot.style.display = 'block';
 
                     document.getElementById('download-buttons').style.display = 'flex';
