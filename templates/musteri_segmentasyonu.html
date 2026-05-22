@@ -180,6 +180,15 @@
 
 <script src="/static/app.js"></script>
 <script>
+
+// Görselin base64 mi yoksa normal URL mi olduğunu kontrol ederek
+// sadece normal URL'lere ?t= cache-buster ekler.
+function safeImgSrc(url) {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url;        // base64 — olduğu gibi bırak
+  return url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(); // dosya URL — cache-bust
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initTabs('seg-tabs');
   initFileDrop('seg-drop','seg-file','seg-file-name');
@@ -227,10 +236,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="metric-card"><div class="metric-val">${cusCount}</div><div class="metric-label">Müşteri</div></div>
         <div class="metric-card"><div class="metric-val">${d.best_k||'—'}</div><div class="metric-label">Segment</div></div>
       `;
+
+      // Tez verisi gerçek dosya URL'i döndürür — cache-bust güvenli
       document.getElementById('tez-seg-plots').innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Cluster">
-          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Silhouette">
+          <img src="${safeImgSrc(d.plot_url)}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Cluster">
+          <img src="${safeImgSrc(d.silhouette_plot_url)}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Silhouette">
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;justify-content:center;flex-wrap:wrap;">
           <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
@@ -258,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(()=>location.href='/rotalama',800);
   });
 
-  // Run segmentation
+  // Run segmentation (normal akış — geçmiş model seçilmemişse)
   document.getElementById('seg-run-btn').addEventListener('click', async () => {
     if (!requireLogin('segmentasyon yapmak')) return;
     const file = document.getElementById('seg-file').files[0];
@@ -285,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       Pipeline.saveKumelemeResult(d);
 
+      // plot_url "data:image/png;base64,..." formatında gelir — ?t= EKLEME
       document.getElementById('seg-results').innerHTML = `
         <div class="metrics-grid">
           <div class="metric-card"><div class="metric-val">${d.silhouette_score?.toFixed(3)}</div><div class="metric-label">Silhouette Skoru</div></div>
@@ -292,8 +304,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="metric-card"><div class="metric-val">${d.customers?.length||0}</div><div class="metric-label">Müşteri Sayısı</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem;">
-          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
-          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+          <img src="${d.plot_url}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Cluster Grafiği">
+          <img src="${d.silhouette_plot_url}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Silhouette Grafiği">
         </div>
         <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
           <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
@@ -441,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Segmentasyon çalıştırılırken geçmiş model varsa onu kullan
+  // Geçmiş model seçiliyse onu indirip segmentasyona gönder
   document.getElementById('seg-run-btn').addEventListener('click', async function(e) {
     if (!_secilenGecmisModel || document.getElementById('model-file').files[0]) return; // normal akış devam eder
     e.stopImmediatePropagation();
@@ -468,6 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const d = await res.json();
       if (!res.ok) { Toast.show(d.detail||'Hata','error'); document.getElementById('seg-results').innerHTML='<p style="color:#fca5a5;text-align:center;">İşlem başarısız.</p>'; return; }
       Pipeline.saveKumelemeResult(d);
+
+      // plot_url "data:image/png;base64,..." formatında gelir — ?t= EKLEME
       document.getElementById('seg-results').innerHTML = `
         <div class="metrics-grid">
           <div class="metric-card"><div class="metric-val">${d.silhouette_score?.toFixed(3)}</div><div class="metric-label">Silhouette Skoru</div></div>
@@ -475,8 +489,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="metric-card"><div class="metric-val">${d.customers?.length||0}</div><div class="metric-label">Müşteri Sayısı</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem;">
-          <img src="${d.plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
-          <img src="${d.silhouette_plot_url}?t=${Date.now()}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);">
+          <img src="${d.plot_url}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Cluster Grafiği">
+          <img src="${d.silhouette_plot_url}" style="width:100%;border-radius:8px;border:1px solid rgba(168,85,247,0.2);" alt="Silhouette Grafiği">
         </div>
         <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap;">
           <a href="${d.excel_1}" class="btn btn-outline btn-sm">⬇️ Müşteri Excel</a>
